@@ -1,6 +1,7 @@
 // Panel entry point. Bundled by esbuild into dist/main.js (IIFE) — see
 // package.json "bundle". Sections follow UI_COMPONENTS.md.
 
+import { pickSrtFile } from "./files";
 import type { ImportedCaptions } from "./model";
 import {
   exportTranscriptJson,
@@ -9,6 +10,7 @@ import {
   type TranscribedClip,
 } from "./premiere";
 import ppro from "./ppro";
+import { parseSrt } from "./srt";
 import { parseTranscriptJson } from "./transcript";
 
 function el<T extends HTMLElement>(id: string): T {
@@ -28,8 +30,6 @@ const probeOutput = el<HTMLElement>("probe-output");
 
 /** Candidates found by the last scan; import uses the first one. */
 let transcribedClips: TranscribedClip[] = [];
-/** The imported word model — single source of truth for later steps. */
-let imported: ImportedCaptions | null = null;
 
 function errorText(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
@@ -67,6 +67,27 @@ async function scanForTranscript(): Promise<void> {
   }
 }
 
+// NOTE: the imported model is only rendered for now; step 5 (wrapper) adds
+// the state store that later sections consume.
+function showImported(result: ImportedCaptions): void {
+  const { words, meta } = result;
+  const speakers = meta.speakerNames.length;
+  sourceResult.className = "source-result";
+  sourceResult.textContent =
+    `Imported ${meta.kind} · ${words.length} words` +
+    (meta.kind === "transcript"
+      ? ` · ${speakers} speaker${speakers === 1 ? "" : "s"}`
+      : "") +
+    (meta.language ? ` · ${meta.language}` : "") +
+    (meta.kind === "srt" && meta.sourceName ? ` · ${meta.sourceName}` : "") +
+    " · lines: pending wrapper (step 5)";
+}
+
+function showImportError(err: unknown): void {
+  sourceResult.className = "hint is-error";
+  sourceResult.textContent = `Import failed: ${errorText(err)}`;
+}
+
 async function importTranscript(): Promise<void> {
   const candidate = transcribedClips[0];
   if (!candidate) {
@@ -77,21 +98,25 @@ async function importTranscript(): Promise<void> {
   sourceResult.textContent = "Importing…";
   try {
     const json = await exportTranscriptJson(candidate.clip);
-    imported = parseTranscriptJson(json, candidate.name);
-    const { words, meta } = imported;
-    const speakers = meta.speakerNames.length;
-    sourceResult.className = "source-result";
-    sourceResult.textContent =
-      `Imported transcript · ${words.length} words · ` +
-      `${speakers} speaker${speakers === 1 ? "" : "s"}` +
-      (meta.language ? ` · ${meta.language}` : "") +
-      " · lines: pending wrapper (step 5)";
+    showImported(parseTranscriptJson(json, candidate.name));
   } catch (err) {
-    imported = null;
-    sourceResult.className = "hint is-error";
-    sourceResult.textContent = `Import failed: ${errorText(err)}`;
+    showImportError(err);
   } finally {
     importTranscriptButton.disabled = transcribedClips.length === 0;
+  }
+}
+
+async function importSrt(): Promise<void> {
+  try {
+    const picked = await pickSrtFile();
+    if (!picked) {
+      return; // user cancelled the picker
+    }
+    sourceResult.className = "hint";
+    sourceResult.textContent = "Importing…";
+    showImported(parseSrt(picked.text, picked.name));
+  } catch (err) {
+    showImportError(err);
   }
 }
 
@@ -101,8 +126,9 @@ rescanButton.addEventListener("click", () => {
 importTranscriptButton.addEventListener("click", () => {
   void importTranscript();
 });
-// SRT ingress arrives in step 4 (PROJECT_STATUS build order).
-importSrtButton.disabled = true;
+importSrtButton.addEventListener("click", () => {
+  void importSrt();
+});
 
 // Scan once on panel load; Premiere may not have a project open yet, which
 // the scan reports gracefully.

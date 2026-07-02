@@ -2,7 +2,7 @@
 
 Update this at the end of any session with meaningful changes (see CLAUDE.md → Update ritual).
 
-Current phase: **Phase 1 — steps 1–3 done (transcript import verified live). Next: step 4 (SRT).**
+Current phase: **Phase 1 — steps 1–4 done (both ingress paths verified live). Next: step 5 (wrapper).**
 Last updated: 2026-07-02.
 
 ## Done
@@ -78,6 +78,19 @@ Last updated: 2026-07-02.
   clip-scan ingress design holds. Parser accepted Premiere's real export unchanged
   (spec-conformant).
 
+- 2026-07-02 — Step 4 built: SRT parser → internal word model (`src/srt.ts`), file
+  picker via UXP `storage.localFileSystem.getFileForOpening` (`src/files.ts`; API
+  verified in cc-ext-uxp-types), panel wiring ("Import SRT file…" now live). Word
+  timing interpolated within each cue proportionally to word length; last word snaps
+  to the cue boundary. Tolerates BOM/CRLF, dot-ms separators, missing indices, stray
+  metadata blocks; strips `<tag>` and `{code}` markup. Parser smoke-tested in Node
+  (11 assertions incl. failure mode).
+
+- 2026-07-02 — Step 4 verified live (Premiere 26.3.0): picker opened, a
+  Premiere-exported .srt imported as 203 words — identical count to the transcript
+  import of the same content, cross-validating both parsers. localFileSystem access
+  worked without issues.
+
 ## In progress
 - (none)
 
@@ -91,7 +104,6 @@ Last updated: 2026-07-02.
   after insert within the same lockedAccess scope.
 
 ## Next (Phase 1 build order)
-4. SRT parser → internal word model (interpolate word timing within cues).
 5. Line wrapper (screen-real-estate setting → derived lines).
 6. Author/obtain Phase 1 MOGRT template(s) for teleprompter + fade with exposed params;
    document the exposed param names here.
@@ -116,6 +128,10 @@ Last updated: 2026-07-02.
   wrapper can prefer sentence-boundary breaks.
 - 2026-07-02: Adobe's transcript spec is NOT vendored into this repo (licensing
   unclear); fetch it from the samples repo when needed. Key shape recorded above.
+- 2026-07-02: SRT policies — display markup (`<i>`, `{\an8}`, …) is stripped; cue-internal
+  line breaks are ignored (our wrapper re-wraps); `eos` is inferred from terminal
+  punctuation (.!?…) since SRT carries no sentence data; word timing weights = character
+  count. `meta.clipName` renamed `sourceName` (clip for transcripts, file for SRT).
 
 ## Discovered API limitations (append as found)
 - Caption-track text read/write: not available (as of research date).

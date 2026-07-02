@@ -132,7 +132,7 @@ export function parseTranscriptJson(json: string, clipName?: string): ImportedCa
     meta: {
       kind: "transcript",
       ...(typeof transcript.language === "string" ? { language: transcript.language } : {}),
-      ...(clipName !== undefined ? { clipName } : {}),
+      ...(clipName !== undefined ? { sourceName: clipName } : {}),
       speakerNames: [...speakerById.values()],
     },
     words,
