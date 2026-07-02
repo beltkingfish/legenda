@@ -21,39 +21,36 @@ exposed parameters. All animation lives inside the template (ARCHITECTURE §2.3)
 ### Tier 1 — required (fade v1 must ship with all of these)
 | Display name (exact) | EG control | Maps to StyleDef | Notes |
 | --- | --- | --- | --- |
-| `Legenda Version` | text | — | Literal `"1"`. Renderer checks presence to confirm the template is ours. |
+| `Legenda Version` | slider, value `1` | — | Renderer checks presence/value to confirm the template is ours. |
 | `Line Text` | text (source text) | — | The caption line. |
-| `Text Color` | color | `textColor` | |
+| `Text Color` | color (Fill effect) | `textColor` | Fill effect flattens per-glyph color — fine until Phase 2 per-word color. |
 | `Background` | checkbox | `background.enabled` | |
-| `Background Color` | color | `background.color` | |
+| `Background Color` | color (shape fill) | `background.color` | |
 | `Background Opacity` | slider 0–100 | `background.opacity` (×100) | |
 
-### Tier 2 — desired (verify each is exposable from AE Essential Graphics; drop to
-### Tier 3 with a note if not)
+### Tier 2 — desired (native EG exposure exists; add after Tier 1 works)
 | Display name (exact) | EG control | Maps to StyleDef |
 | --- | --- | --- |
-| `Font` | font selector | `typography.fontFamily` + `fontWeight` (style is part of the font selection) |
-| `Font Size` | slider 8–200 | `typography.fontSize` |
-| `Letter Spacing` | slider −100–400 | `typography.letterSpacing` |
-| `Outline` | checkbox | `outline.enabled` |
-| `Outline Color` | color | `outline.color` |
-| `Outline Width` | slider 0–20 | `outline.width` |
-| `Shadow` | checkbox | `dropShadow.enabled` |
-| `Shadow Opacity` | slider 0–100 | `dropShadow.opacity` (×100) |
+| `Font` | font selector (Source Text → Edit Properties) | `typography.fontFamily` + `fontWeight` (style is part of the font selection) |
+| `Font Size` | font size (Source Text → Edit Properties) | `typography.fontSize` |
+| `Shadow Opacity` | slider 0–100 (Drop Shadow effect's Opacity) | `dropShadow.opacity` (×100); `0` ⇒ `dropShadow.enabled: false` — no separate checkbox |
 
 ### Tier 3 — deferred (not in v1; renderer must tolerate their absence)
-- `Line Height` (leading exposure from EG is uncertain), text `Alignment`
+- `Outline Width` / `Outline Color` (needs text style expressions —
+  `setApplyStroke`/`setStrokeWidth` — fragile alongside EG-editable text; width `0`
+  ⇒ disabled, no checkbox), `Letter Spacing` (same style-expression route),
+  `Line Height` (leading exposure from EG is uncertain), text `Alignment`
   (paragraph alignment is not directly exposable), background `cornerRadius` /
   `paddingX` / `paddingY` (bake preset-typical values into the template),
   shadow blur/distance, per-word italic/color slots (Phase 2, ARCHITECTURE §9),
   `Transition (ms)` as a slider driving animation timing via expressions —
-  author fade v1 with a **fixed 150 ms** intro/outro first; attempt the
-  expression-driven slider only once the fixed version works end to end.
+  author fade v1 with a **fixed ≈150 ms (5 frames @ 30 fps)** intro/outro first;
+  attempt the expression-driven slider only once the fixed version works end to end.
 
 ## Animation behavior
 
 ### Fade (`legenda-fade-v1`)
-- Intro: opacity 0 → 100 over 150 ms. Outro: 100 → 0 over 150 ms.
+- Intro: opacity 0 → 100 over ≈150 ms (5 frames @ 30 fps). Outro: mirror of intro.
 - Author intro/outro as **protected regions** (responsive design – time) so
   trimming the instance to any line duration ≥ ~500 ms keeps both ramps intact.
 - Text: single line, centered on screen-bottom third, anchor centered so
