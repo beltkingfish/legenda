@@ -196,13 +196,22 @@ Last updated: 2026-07-02.
   template is otherwise fully usable. MOGRT_SPEC Tier 1 updated.
 - Confirmed the UHD downscale path: Motion component exposes `Scale`. Item duration
   3.97s ≈ the 4s comp.
-- **Write prototype shipped (awaiting live run)**: panel "Write test values" button
-  → `writeTestOnSelection` finds the `AE.ADBE Capsule` on the selected clip and sets
-  one param of each type the renderer needs — `Line Text` (string), `Background
-  Opacity` (number), `Text Color` (`ppro.Color(1,0,0,1)`, **0–1 float assumed**) —
-  each via `createKeyframe` + `createSetValueAction` in the transaction idiom, with
-  readback via `getValueAtTime`. Maintainer: select the inserted MOGRT, click it,
-  paste the report. Confirms the write path (last unknown) + the color value range.
+- **Write prototype run (2026-07-02, first results):**
+  - **Number WORKS** — `Background Opacity` = 100 set and read back. `getValueAtTime`
+    returns a `{ value: X }` wrapper (matches `Keyframe.value` shape in defs).
+  - **Color** — set did not throw; readback threw (readback since hardened to report
+    why). Inconclusive; range still unconfirmed.
+  - **`Line Text` (string) FAILED — "Illegal Parameter type".** `createKeyframe(string)`
+    rejects a plain string for the source-text capsule param (the defs note
+    createKeyframe throws when the value type ≠ the param's type). **This is the
+    critical open problem: the caption text itself is the one param we can't yet
+    set.** Source-text params are not plain-string type; likely need a rich-text /
+    document representation.
+- **Next diagnostic shipped (awaiting live run)**: panel "Read all param values"
+  (`inspectCapsuleValues`, read-only) dumps each capsule param's CURRENT value +
+  raw outer JSON shape. `Line Text`'s native shape tells us what `createKeyframe`
+  wants; the color params' numbers reveal the 0–1 vs 0–255 range. Maintainer: select
+  the authored (unmodified) MOGRT, click it, paste the report.
 
 ## Discovered API limitations (append as found)
 - Caption-track text read/write: not available (as of research date).

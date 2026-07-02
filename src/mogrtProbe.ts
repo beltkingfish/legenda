@@ -58,15 +58,27 @@ function message(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-function describeValue(value: unknown): string {
+function formatScalar(value: unknown): string {
   if (value && typeof value === "object") {
     const c = value as { red?: number; green?: number; blue?: number; alpha?: number };
     if (typeof c.red === "number") {
-      return `rgba(${c.red}, ${c.green}, ${c.blue}, ${c.alpha})`;
+      return `Color(${c.red}, ${c.green}, ${c.blue}, ${c.alpha})`;
     }
-    return JSON.stringify(value);
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
   }
-  return String(value);
+  return `${typeof value}:${String(value)}`;
+}
+
+/** getValueAtTime returns a `{ value: X }` wrapper — unwrap one level. */
+function describeValue(value: unknown): string {
+  if (value && typeof value === "object" && "value" in value) {
+    return formatScalar((value as { value: unknown }).value);
+  }
+  return formatScalar(value);
 }
 
 /** Shared chain dump for one track item; appends findings to `out`. */
@@ -175,6 +187,49 @@ async function findCapsule(
 }
 
 /**
+ * Read-only: dump each capsule param's CURRENT value and its raw shape. The
+ * native shape of "Line Text" tells us what type createKeyframe expects (a
+ * plain string was rejected — "Illegal Parameter type"), and the color params'
+ * numbers reveal the value range (0–1 vs 0–255).
+ */
+export async function inspectCapsuleValues(): Promise<string> {
+  const { project, sequence } = await getActiveContext();
+  if (!project || !sequence) {
+    throw new Error("Open a project with an active sequence first.");
+  }
+  const selection = await sequence.getSelection();
+  const items = (await selection.getTrackItems()) as unknown as InsertedItemLike[];
+  if (items.length === 0) {
+    throw new Error("Select the inserted MOGRT clip in the timeline first.");
+  }
+  const params = await findCapsule(project as unknown as ProjectTxn, items[0]);
+  if (!params) {
+    throw new Error(`No "${CAPSULE_MATCH_NAME}" component on the selected clip.`);
+  }
+
+  const out: string[] = ["current capsule param values (name → raw shape):", ""];
+  for (const { param, name } of params) {
+    const label = name === "" ? "(empty displayName)" : name;
+    try {
+      const raw = await param.getValueAtTime(ppro.TickTime.TIME_ZERO);
+      // Show the outer wrapper too, so nested/rich-text shapes are visible.
+      let outer: string;
+      try {
+        outer = JSON.stringify(raw);
+      } catch {
+        outer = String(raw);
+      }
+      out.push(`• ${label}: ${describeValue(raw)}  [outer: ${outer}]`);
+    } catch (err) {
+      out.push(`• ${label}: read threw — ${message(err)}`);
+    }
+  }
+  const report = out.join("\n");
+  console.log(report);
+  return report;
+}
+
+/**
  * Write-path prototype (step 6, open question #1): set one exposed param of
  * each value type — string, number, color — on the selected MOGRT, then read
  * each back. Proves the renderer can drive the template before step 7.
@@ -229,11 +284,11 @@ export async function writeTestOnSelection(): Promise<string> {
           `Legenda: set ${target.name}`
         );
       });
-      let readback = "(read failed)";
+      let readback: string;
       try {
         readback = describeValue(await match.param.getValueAtTime(ppro.TickTime.TIME_ZERO));
-      } catch {
-        // readback is best-effort; the write is what matters
+      } catch (readErr) {
+        readback = `(read threw: ${message(readErr)})`;
       }
       out.push(
         `• ${target.name}: set ✓ → readback ${readback}` +
