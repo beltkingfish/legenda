@@ -10,9 +10,15 @@ the JavaScript engine. Last updated: 2026-07-02.
   auto-activates on end-user machines.
 
 ## 1. Composition
-- New Composition: **"Legenda Fade v1"**, 1920×1080, **30 fps**, square pixels,
-  duration **4:00** (120 frames), background transparent (toggle transparency in
-  preview to check).
+- New Composition: **"Legenda Fade v1"**, **3840×2160 (UHD)**, **30 fps**, square
+  pixels, duration **4:00** (120 frames), background transparent (toggle
+  transparency in preview to check).
+- **Why UHD**: a MOGRT comp has fixed pixel dimensions and Premiere places AE
+  templates at native size. The renderer scales each instance DOWN to the
+  sequence frame (`Sequence.getFrameSize()` → clip Motion → Scale); AE-rendered
+  graphics downscale crisply but upscale soft, so author at the largest target.
+  All pixel values in this recipe are therefore 2× the 1080-referenced preset
+  values in `presets/style-presets.json`.
 
 ## 2. Controls layer
 - Layer → New → **Null Object**, rename the layer **"Controls"**.
@@ -26,25 +32,25 @@ the JavaScript engine. Last updated: 2026-07-02.
 ## 3. Text layer
 - Type tool → click (POINT text — do **not** drag a box; the auto-size rig needs
   point text) → type `Line text goes here`. Rename layer **"Caption Text"**.
-- Character panel: **Montserrat Bold, 48 px**, fill white. Paragraph panel:
-  **Center text**.
-- Position ≈ **(960, 940)** — lower third, centered.
+- Character panel: **Montserrat Bold, 96 px** (= preset `fontSize: 48` at the
+  1080 reference), fill white. Paragraph panel: **Center text**.
+- Position ≈ **(1920, 1880)** — lower third, centered.
 - Effect → Generate → **Fill**, color white. (This effect's Color becomes the
   exposed `Text Color`; it flattens glyph color, which is fine until Phase 2.)
 - Effect → Perspective → **Drop Shadow**: Opacity **0%** (off by default),
-  Direction 135°, Distance 4, Softness 8. (Its Opacity becomes `Shadow Opacity`;
-  0 means disabled — no separate checkbox.)
+  Direction 135°, Distance 8, Softness 16. (Its Opacity becomes `Shadow
+  Opacity`; 0 means disabled — no separate checkbox.)
 
 ## 4. Background layer (auto-sizing bar)
 - Layer → New → **Shape Layer**, rename **"Background"**, drag **below** the text
   layer. In Contents: Add → Rectangle, Add → Fill (no stroke).
 - **Fill Color**: #000000. (Exposed later as `Background Color`.)
-- **Rectangle Path 1 → Roundness**: 8.
+- **Rectangle Path 1 → Roundness**: 16.
 - Alt-click the stopwatch on each property below and paste:
   - Rectangle Path 1 → **Size**:
     ```js
     const r = thisComp.layer("Caption Text").sourceRectAtTime(time, false);
-    [r.width + 48, r.height + 24]
+    [r.width + 96, r.height + 48]
     ```
   - Rectangle Path 1 → **Position**:
     ```js
@@ -62,8 +68,9 @@ the JavaScript engine. Last updated: 2026-07-02.
     const fade = thisComp.layer("Caption Text").transform.opacity;
     on * (op / 100) * fade
     ```
-- Type in the text layer to confirm the bar hugs the text with 24 px side /
-  12 px top-bottom padding.
+- Type in the text layer to confirm the bar hugs the text with 48 px side /
+  24 px top-bottom padding (UHD px = the Clean preset's 24/12 at the 1080
+  reference).
 
 ## 5. Fade animation (≈150 ms = 5 frames)
 - On **Caption Text → Transform → Opacity**: keyframes

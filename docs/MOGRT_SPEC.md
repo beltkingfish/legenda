@@ -79,7 +79,15 @@ constraint (WCAG warn-never-block philosophy does not apply here — this is a
 scope call, update SPECIFICATION.md if taken).
 
 ## Authoring workflow (After Effects)
-1. Comp 1920×1080, 30 fps (MOGRTs scale; keep square pixels).
+1. Comp **3840×2160 (UHD)**, 30 fps, square pixels. A MOGRT comp has fixed pixel
+   dimensions and Premiere places AE templates at native size; the renderer
+   scales instances **down** to the sequence frame (`Sequence.getFrameSize()` →
+   clip Motion → Scale — clip-intrinsic ComponentParam surface, so the
+   exposed-params-only constraint is not violated). Downscale is crisp,
+   upscale is soft — author at the largest target.
+   **StyleDef sizes stay 1080-referenced**: the renderer multiplies size-like
+   params by `designHeight / 1080` when writing them into the template
+   (e.g. `fontSize: 48` → `Font Size` 96 in the UHD comp).
 2. Text layer + shape-layer background; effects for outline (stroke) and
    drop shadow; blur only in the teleprompter template.
 3. Expose properties via the Essential Graphics panel using the **exact names
@@ -99,3 +107,5 @@ scope call, update SPECIFICATION.md if taken).
    `displayName`s and value types?
 3. Can params be set immediately after insert in the same/next lockedAccess?
    (Answered once a text param exists to set — our template's `Line Text`.)
+4. Downscale sharpness: insert the UHD template into both a UHD and a 1080
+   sequence (scaled to fit) and confirm text renders crisply in each.

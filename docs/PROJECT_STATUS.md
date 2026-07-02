@@ -118,9 +118,10 @@ Last updated: 2026-07-02.
 
 ## In progress
 - **Maintainer action**: author `mogrt/legenda-fade-v1.mogrt` per docs/MOGRT_SPEC.md
-  (Tier 1 params minimum), then run the panel's MOGRT probe on it and paste the dump
-  here. Any installed/stock .mogrt can exercise the probe sooner to answer the
-  auto-create-track and param-surface questions.
+  (Tier 1 params minimum, UHD comp), then run the panel's MOGRT probe on it and paste
+  the dump here. Any installed/stock .mogrt can exercise the probe sooner to answer
+  the auto-create-track and param-surface questions. Also check downscale sharpness:
+  insert the UHD template into a UHD and a 1080 sequence and confirm crisp text.
 
 ## Open questions for the MOGRT prototype (step 6 — verify live)
 - No explicit "add track" API found. `createInsertProjectItemAction` docs: an
@@ -160,6 +161,12 @@ Last updated: 2026-07-02.
   line breaks are ignored (our wrapper re-wraps); `eos` is inferred from terminal
   punctuation (.!?…) since SRT carries no sentence data; word timing weights = character
   count. `meta.clipName` renamed `sourceName` (clip for transcripts, file for SRT).
+- 2026-07-02: MOGRT templates are authored at **UHD 3840×2160** (fixed comp pixel
+  dimensions; Premiere places AE templates at native size; downscale crisp, upscale
+  soft). The renderer scales instances down per sequence via `Sequence.getFrameSize()`
+  (verified in 26.3.0 defs, ~line 3183) + clip Motion → Scale (clip-intrinsic
+  ComponentParam, not a MOGRT-internal param). StyleDef sizes stay 1080-referenced;
+  size-like params are multiplied by designHeight/1080 when written to the template.
 - 2026-07-02: Wrapper policies — speaker changes and silences > 1.5s always break
   (captioning convention / no pause inside a line); sentence-boundary breaks kick in at
   ≥ 60% of the char budget; a line never exceeds 7s on screen by construction (distinct
