@@ -2,7 +2,7 @@
 
 Update this at the end of any session with meaningful changes (see CLAUDE.md → Update ritual).
 
-Current phase: **Phase 1 — steps 1–4 done (both ingress paths verified live). Next: step 5 (wrapper).**
+Current phase: **Phase 1 — step 5 built; awaiting live check of the line preview.**
 Last updated: 2026-07-02.
 
 ## Done
@@ -91,8 +91,21 @@ Last updated: 2026-07-02.
   import of the same content, cross-validating both parsers. localFileSystem access
   worked without issues.
 
+- 2026-07-02 — Step 5 built: line wrapper (`src/wrap.ts`). Greedy wrap by word, never
+  splits a word; breaks on speaker change, silences > 1.5s, the character budget, and
+  a max on-screen duration (default 7s); prefers ending lines at sentence boundaries
+  (`eos`) once ≥ 60% full. Panel: "Target line length" field (default from
+  presets/style-presets.json via build-time JSON import), live re-wrap on change,
+  read-only line preview with timecodes, counts line now includes lines.
+- 2026-07-02 — Tests promoted into the repo: `npm test` (esbuild → node:test, zero new
+  deps). 19 tests: 11 wrapper + 8 SRT (ported from the step-4 scratchpad smoke test).
+  Test files are esbuild-compiled only (not tsc-typechecked — they'd need @types/node,
+  which conflicts with our restricted `types: ["uxp"]` setup).
+
 ## In progress
-- (none)
+- Manual check (needs Premiere): import either source → line preview renders with
+  plausible breaks; changing "Target line length" re-wraps live. First
+  `<input type="number">` in the panel — note any UXP quirks with it.
 
 ## Open questions for the MOGRT prototype (step 6 — verify live)
 - No explicit "add track" API found. `createInsertProjectItemAction` docs: an
@@ -132,6 +145,12 @@ Last updated: 2026-07-02.
   line breaks are ignored (our wrapper re-wraps); `eos` is inferred from terminal
   punctuation (.!?…) since SRT carries no sentence data; word timing weights = character
   count. `meta.clipName` renamed `sourceName` (clip for transcripts, file for SRT).
+- 2026-07-02: Wrapper policies — speaker changes and silences > 1.5s always break
+  (captioning convention / no pause inside a line); sentence-boundary breaks kick in at
+  ≥ 60% of the char budget; a line never exceeds 7s on screen by construction (distinct
+  from the warn-only WCAG checks on *user-chosen* timing, which still never block).
+  Lines store contiguous word ranges (`firstWord`/`lastWord`) rather than an index
+  array — same meaning as ARCHITECTURE §4's `wordRefs[]`, cheaper to hold.
 
 ## Discovered API limitations (append as found)
 - Caption-track text read/write: not available (as of research date).
