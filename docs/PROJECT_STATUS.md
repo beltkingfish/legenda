@@ -2,7 +2,7 @@
 
 Update this at the end of any session with meaningful changes (see CLAUDE.md → Update ritual).
 
-Current phase: **Phase 1 — step 5 built; awaiting live check of the line preview.**
+Current phase: **Phase 1 — steps 1–5 done. Next: step 6 (MOGRT authoring + prototype).**
 Last updated: 2026-07-02.
 
 ## Done
@@ -102,10 +102,13 @@ Last updated: 2026-07-02.
   Test files are esbuild-compiled only (not tsc-typechecked — they'd need @types/node,
   which conflicts with our restricted `types: ["uxp"]` setup).
 
+- 2026-07-02 — Step 5 verified live (Premiere 26.3.0): 203 words → 38 lines at the
+  default width; breaks read sentence-shaped; changing "Target line length" re-wraps
+  the preview live. UXP quirk noted: `<input type="number">` works but renders rough
+  (value display/styling) — revisit in the style-panel pass.
+
 ## In progress
-- Manual check (needs Premiere): import either source → line preview renders with
-  plausible breaks; changing "Target line length" re-wraps live. First
-  `<input type="number">` in the panel — note any UXP quirks with it.
+- (none)
 
 ## Open questions for the MOGRT prototype (step 6 — verify live)
 - No explicit "add track" API found. `createInsertProjectItemAction` docs: an
