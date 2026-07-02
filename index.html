@@ -11,8 +11,24 @@
   </header>
 
   <main class="panel-body">
-    <!-- Dev-only probe (Phase 1, step 1). Replaced by the Source section
-         (UI_COMPONENTS.md §1) once import lands. -->
+    <!-- Source (UI_COMPONENTS.md §1) -->
+    <section class="section">
+      <h2 class="section-title">Source</h2>
+      <p id="source-status" class="hint">Scanning for a transcript…</p>
+      <div class="button-row">
+        <button id="import-transcript-button" class="button button-primary" disabled>
+          Import transcript
+        </button>
+        <button id="import-srt-button" class="button" disabled
+                title="SRT import arrives in step 4">
+          Import SRT file…
+        </button>
+        <button id="rescan-button" class="button">Rescan</button>
+      </div>
+      <p id="source-result" class="hint"></p>
+    </section>
+
+    <!-- Dev-only probe (Phase 1, step 1); kept as a connection debugging aid. -->
     <section class="section">
       <h2 class="section-title">Connection check</h2>
       <p class="hint">

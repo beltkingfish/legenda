@@ -2,7 +2,7 @@
 
 Update this at the end of any session with meaningful changes (see CLAUDE.md → Update ritual).
 
-Current phase: **Phase 1 — steps 1–2 done. Next: step 3 (transcript import).**
+Current phase: **Phase 1 — steps 1–3 done (transcript import verified live). Next: step 4 (SRT).**
 Last updated: 2026-07-02.
 
 ## Done
@@ -58,6 +58,26 @@ Last updated: 2026-07-02.
     → `selection.addItem(item)` → `sequenceEditor.createRemoveItemsAction(selection,
     ripple, mediaType)` — programmatic clear without touching user selection.
 
+- 2026-07-02 — Step 3 built: transcript import → internal word model. Read Adobe's
+  `transcript_format_spec.json` (JSON Schema; root = `language`, `segments[]`,
+  `speakers[]`; segment = `start`/`duration`/`speaker`-uuid/`words[]`; word =
+  `text`/`start`/`duration`/`eos`/`type`(word|punctuation)/`confidence`/`tags`, times in
+  seconds). Parser in `src/transcript.ts`; Premiere glue (scan sequence clips for
+  transcripts, export JSON) in `src/premiere.ts`; internal model in `src/model.ts`
+  (per ARCHITECTURE §4, plus optional `eos` for the step-5 wrapper). Source section
+  wired in the panel (auto-scan on load, Rescan, Import; SRT button present, disabled
+  until step 4). Builds + lints clean.
+- 2026-07-02 — Tooling: switched to esbuild bundling (src/main.ts → dist/main.js as
+  IIFE, host modules external so `require("premierepro")` stays a runtime call).
+  Needed for multi-file src/; tsc is typecheck-only now.
+
+- 2026-07-02 — Step 3 verified live (Premiere 26.3.0): Source scan found the transcript
+  on a Text-panel-transcribed sequence; import reported 203 words · 1 speaker · en-us.
+  **Answered**: sequence transcription DOES surface as clip-level transcripts —
+  `Transcript.hasTranscript` is true on the sequence's clip project items, so the
+  clip-scan ingress design holds. Parser accepted Premiere's real export unchanged
+  (spec-conformant).
+
 ## In progress
 - (none)
 
@@ -71,8 +91,6 @@ Last updated: 2026-07-02.
   after insert within the same lockedAccess scope.
 
 ## Next (Phase 1 build order)
-3. Read `transcript_format_spec.json` from the Adobe samples repo; implement transcript
-   import → internal word model.
 4. SRT parser → internal word model (interpolate word timing within cues).
 5. Line wrapper (screen-real-estate setting → derived lines).
 6. Author/obtain Phase 1 MOGRT template(s) for teleprompter + fade with exposed params;
@@ -92,6 +110,12 @@ Last updated: 2026-07-02.
   a tsc module wrapper (`exports.__esModule`) would throw at runtime.
 - 2026-07-02: Plain HTML controls (dark-themed) in step 1; adopt `sp-` elements per
   control only after confirming they render in the live Premiere panel.
+- 2026-07-02: Standalone punctuation tokens (`type: "punctuation"`) merge into the
+  preceding word (text + endSec + eos); leading punctuation prefixes the next word.
+  Punctuation is never a wrappable unit. `eos` is kept on the internal word so the
+  wrapper can prefer sentence-boundary breaks.
+- 2026-07-02: Adobe's transcript spec is NOT vendored into this repo (licensing
+  unclear); fetch it from the samples repo when needed. Key shape recorded above.
 
 ## Discovered API limitations (append as found)
 - Caption-track text read/write: not available (as of research date).

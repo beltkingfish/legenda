@@ -3,10 +3,6 @@
     "target": "ES2022",
     "module": "nodenext",
     "moduleResolution": "nodenext",
-    // Panel scripts load via <script> tags where UXP provides no CommonJS
-    // wrapper. "legacy" keeps import-free files as plain scripts so tsc
-    // emits no `exports` references (which would throw at runtime).
-    "moduleDetection": "legacy",
     // UXP's DOM is a subset of the web DOM; @adobe/cc-ext-uxp-types provides it.
     // Per that package's README: exclude the standard "DOM" lib and add the
     // package directory as a typeRoot; "uxp" is the types package inside it.
@@ -16,10 +12,11 @@
       "node_modules/@adobe/cc-ext-uxp-types"
     ],
     "types": ["uxp"],
-    "rootDir": "src",
-    "outDir": "dist",
+    // tsc typechecks only; esbuild bundles src/main.ts → dist/main.js as an
+    // IIFE (UXP <script> tags provide no CommonJS wrapper), with the host
+    // modules ("premierepro", "uxp") left as runtime require() calls.
+    "noEmit": true,
     "strict": true,
-    "noEmitOnError": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true
   },
