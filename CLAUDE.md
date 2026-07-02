@@ -19,6 +19,8 @@ warnings that never block the user.
 3. `docs/PROJECT_STATUS.md` — the current phase and what is/isn't done.
 4. `docs/UI_COMPONENTS.md` — panel layout, exact labels, and warning copy.
 5. `presets/style-presets.json` — the three preset definitions with exact values.
+6. `docs/MOGRT_SPEC.md` — the exposed-parameter contract between the caption
+   template(s) and the renderer (names are matched literally at runtime).
 
 ## Non-negotiable technical rules
 - **Target UXP, not CEP/ExtendScript.** Premiere 2026 (v25.6+) ships UXP as standard.

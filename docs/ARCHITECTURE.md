@@ -44,6 +44,8 @@ Last updated: 2026-07-02. Read the **Hard constraints** section before designing
   After Effects) that contain the teleprompter and fade behaviors, with a small set of
   **exposed editable parameters**: line text, text color, background on/off, background
   color/opacity, and (where feasible) an italic/emphasis flag.
+  **The exact exposed-parameter contract lives in docs/MOGRT_SPEC.md** — the renderer
+  matches params by display name, so template and code must both follow it.
 - Pipeline: import → normalize to internal model (§4) → wrap into lines by screen-real-
   estate setting → for each line, insert a MOGRT instance on a dedicated video track at the
   line's start time, trim to its duration → set exposed params from the active style →
