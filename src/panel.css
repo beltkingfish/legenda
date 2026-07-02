@@ -27,13 +27,14 @@ body {
 body {
   display: flex;
   flex-direction: column;
+  /* Explicit: UXP centered children without it (observed in Premiere 26.3). */
+  align-items: stretch;
   height: 100vh;
 }
 
 .panel-header {
   display: flex;
   align-items: baseline;
-  gap: 8px;
   padding: 10px 12px 8px;
   border-bottom: 1px solid var(--border);
 }
@@ -45,6 +46,8 @@ body {
 }
 
 .panel-phase {
+  /* margin, not flex gap: UXP ignores `gap` (observed in Premiere 26.3). */
+  margin-left: 8px;
   color: var(--text-dim);
   font-size: 10px;
   text-transform: uppercase;
