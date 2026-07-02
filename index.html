@@ -24,7 +24,13 @@
         </button>
         <button id="rescan-button" class="button">Rescan</button>
       </div>
+      <div class="field-row">
+        <label class="field-label" for="line-length-input">Target line length (characters)</label>
+        <input id="line-length-input" class="field-input" type="number"
+               value="32" min="8" max="80" />
+      </div>
       <p id="source-result" class="hint"></p>
+      <ol id="line-preview" class="line-preview"></ol>
     </section>
 
     <!-- Dev-only probe (Phase 1, step 1); kept as a connection debugging aid. -->

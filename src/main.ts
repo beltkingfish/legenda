@@ -1,6 +1,7 @@
 // Panel entry point. Bundled by esbuild into dist/main.js (IIFE) — see
 // package.json "bundle". Sections follow UI_COMPONENTS.md.
 
+import presets from "../presets/style-presets.json";
 import { pickSrtFile } from "./files";
 import type { ImportedCaptions } from "./model";
 import {
@@ -12,6 +13,7 @@ import {
 import ppro from "./ppro";
 import { parseSrt } from "./srt";
 import { parseTranscriptJson } from "./transcript";
+import { wrapWords, type CaptionLine } from "./wrap";
 
 function el<T extends HTMLElement>(id: string): T {
   return document.getElementById(id) as T;
@@ -22,6 +24,8 @@ const sourceResult = el<HTMLElement>("source-result");
 const importTranscriptButton = el<HTMLButtonElement>("import-transcript-button");
 const importSrtButton = el<HTMLButtonElement>("import-srt-button");
 const rescanButton = el<HTMLButtonElement>("rescan-button");
+const lineLengthInput = el<HTMLInputElement>("line-length-input");
+const linePreview = el<HTMLElement>("line-preview");
 const probeButton = el<HTMLButtonElement>("probe-button");
 const probeOutput = el<HTMLElement>("probe-output");
 
@@ -67,23 +71,66 @@ async function scanForTranscript(): Promise<void> {
   }
 }
 
-// NOTE: the imported model is only rendered for now; step 5 (wrapper) adds
-// the state store that later sections consume.
-function showImported(result: ImportedCaptions): void {
-  const { words, meta } = result;
+// Imported words (canonical) and the lines derived from them by the wrapper.
+// Later sections (styling, renderer) consume this state.
+let imported: ImportedCaptions | null = null;
+let lines: CaptionLine[] = [];
+
+function currentTargetLineChars(): number {
+  const parsed = Number.parseInt(lineLengthInput.value, 10);
+  return Number.isFinite(parsed) && parsed > 0
+    ? parsed
+    : presets.defaults.wrapping.targetLineChars;
+}
+
+function formatTime(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = (sec % 60).toFixed(1).padStart(4, "0");
+  return `${m}:${s}`;
+}
+
+function renderLines(): void {
+  if (!imported) {
+    return;
+  }
+  lines = wrapWords(imported.words, { targetLineChars: currentTargetLineChars() });
+
+  const { words, meta } = imported;
   const speakers = meta.speakerNames.length;
   sourceResult.className = "source-result";
   sourceResult.textContent =
-    `Imported ${meta.kind} · ${words.length} words` +
+    `Imported ${meta.kind} · ${words.length} words · ${lines.length} lines` +
     (meta.kind === "transcript"
       ? ` · ${speakers} speaker${speakers === 1 ? "" : "s"}`
       : "") +
     (meta.language ? ` · ${meta.language}` : "") +
-    (meta.kind === "srt" && meta.sourceName ? ` · ${meta.sourceName}` : "") +
-    " · lines: pending wrapper (step 5)";
+    (meta.kind === "srt" && meta.sourceName ? ` · ${meta.sourceName}` : "");
+
+  // Read-only preview; the editable per-caption list is a later step.
+  linePreview.textContent = "";
+  for (const line of lines) {
+    const item = document.createElement("li");
+    const time = document.createElement("span");
+    time.className = "line-time";
+    time.textContent = `${formatTime(line.startSec)}–${formatTime(line.endSec)}`;
+    const text = document.createElement("span");
+    text.className = "line-text";
+    text.textContent = line.text;
+    item.appendChild(time);
+    item.appendChild(text);
+    linePreview.appendChild(item);
+  }
+}
+
+function showImported(result: ImportedCaptions): void {
+  imported = result;
+  renderLines();
 }
 
 function showImportError(err: unknown): void {
+  imported = null;
+  lines = [];
+  linePreview.textContent = "";
   sourceResult.className = "hint is-error";
   sourceResult.textContent = `Import failed: ${errorText(err)}`;
 }
@@ -128,6 +175,10 @@ importTranscriptButton.addEventListener("click", () => {
 });
 importSrtButton.addEventListener("click", () => {
   void importSrt();
+});
+// Lines are cheap derived data — re-wrap live as the setting changes.
+lineLengthInput.addEventListener("input", () => {
+  renderLines();
 });
 
 // Scan once on panel load; Premiere may not have a project open yet, which

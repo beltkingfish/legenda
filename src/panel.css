@@ -142,6 +142,53 @@ body {
   color: var(--warn);
 }
 
+.field-row {
+  margin: 0 0 10px;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text-dim);
+}
+
+.field-input {
+  display: inline-block;
+  width: 64px;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background-color: var(--bg-control);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.line-preview {
+  margin: 10px 0 0;
+  padding: 0 0 0 8px;
+  max-height: 180px;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.line-preview li {
+  display: block;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border);
+  line-height: 1.4;
+}
+
+.line-time {
+  display: inline-block;
+  min-width: 84px;
+  color: var(--text-dim);
+  font-size: 10px;
+}
+
+.line-text {
+  color: var(--text);
+}
+
 .probe-output {
   margin: 10px 0 0;
   min-height: 1.5em;
