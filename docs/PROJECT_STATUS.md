@@ -174,6 +174,25 @@ Last updated: 2026-07-02.
   Lines store contiguous word ranges (`firstWord`/`lastWord`) rather than an index
   array — same meaning as ARCHITECTURE §4's `wordRefs[]`, cheaper to hold.
 
+## Step 6 probe findings (2026-07-02, Premiere 26.3.0, legenda-fade-v1.mogrt)
+- **Q1 answered**: `insertMogrtFromPath` REJECTS an out-of-range video track index
+  ("Invalid parameter."); insert succeeded on an existing track. No auto-create —
+  the renderer needs another way to obtain the plugin-owned track (re-scan defs for
+  track-add actions; or `createInsertProjectItemAction`'s documented auto-create as a
+  workaround; or topmost-empty-track + ask the user).
+- **Q2 OPEN AND ALARMING**: the inserted instance's component chain contains ONLY
+  intrinsic clip components — "Opacity" (AE.ADBE Opacity) and "Motion" (AE.ADBE
+  Motion, incl. Scale — confirms the UHD downscale path). **No Essential Graphics /
+  Graphic Parameters component**; none of the template's exposed params (Line Text
+  etc.) surfaced. The type defs have no graphics-param API; Adobe's samples insert
+  MOGRTs but never set params; official docs are silent. If EG params are truly
+  unreachable, the render design (ARCHITECTURE §3) is blocked as-is.
+- Next diagnostic: "Dump selected clip" probe — dump the chain of the previously
+  inserted (now fully loaded) instance to rule out lazy population of the graphics
+  component. Then: ask on the Creative Cloud developer forums / file with Adobe.
+- Also noted: Motion has an unnamed param (displayName " "); item default duration
+  3.97s matches the 4s comp.
+
 ## Discovered API limitations (append as found)
 - Caption-track text read/write: not available (as of research date).
 - Multi-keyframe ComponentParam writes: reported unreliable in current UXP builds.

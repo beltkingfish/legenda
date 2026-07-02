@@ -40,6 +40,75 @@ function message(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
+/** Shared chain dump for one track item; appends findings to `out`. */
+async function dumpItem(
+  project: { lockedAccess(cb: () => void): void },
+  rawItem: unknown,
+  out: string[]
+): Promise<void> {
+  const item = rawItem as InsertedItemLike;
+  if (typeof item.getComponentChain !== "function") {
+    return;
+  }
+  try {
+    const name = await item.getName();
+    const duration = (await item.getDuration()).seconds;
+    out.push("");
+    out.push(`item "${name}" · duration ${duration.toFixed(2)}s`);
+
+    const chain = await item.getComponentChain();
+    // Chain reads need lockedAccess (step-2 record); its callback is sync,
+    // so collect refs inside and await the async names outside.
+    const collected: { component: ComponentLike; params: string[] }[] = [];
+    project.lockedAccess(() => {
+      const count = chain.getComponentCount();
+      for (let i = 0; i < count; i++) {
+        const component = chain.getComponentAtIndex(i);
+        const params: string[] = [];
+        for (let j = 0; j < component.getParamCount(); j++) {
+          params.push(component.getParam(j).displayName);
+        }
+        collected.push({ component, params });
+      }
+    });
+
+    for (const { component, params } of collected) {
+      const matchName = await component.getMatchName();
+      const displayName = await component.getDisplayName();
+      out.push(`  component "${displayName}" (matchName: ${matchName})`);
+      for (const param of params) {
+        out.push(`    param "${param}"`);
+      }
+    }
+  } catch (err) {
+    out.push(`  ✖ dump failed on this item: ${message(err)}`);
+  }
+}
+
+/**
+ * Dump the component chain of the track item(s) currently selected in the
+ * timeline — distinguishes "MOGRT params surface after the clip loads" from
+ * "MOGRT params never surface through the chain".
+ */
+export async function probeSelection(): Promise<string> {
+  const { project, sequence } = await getActiveContext();
+  if (!project || !sequence) {
+    throw new Error("Open a project with an active sequence first.");
+  }
+  const selection = await sequence.getSelection();
+  const items = await selection.getTrackItems();
+  if (items.length === 0) {
+    throw new Error("Select a clip in the timeline first (e.g. the inserted MOGRT).");
+  }
+  const out: string[] = [`selected item(s): ${items.length}`];
+  for (const item of items) {
+    await dumpItem(project, item, out);
+  }
+  const report = out.join("\n");
+  console.log(report);
+  return report;
+}
+
 export async function probeMogrt(path: string): Promise<string> {
   const { project, sequence } = await getActiveContext();
   if (!project || !sequence) {
@@ -93,43 +162,7 @@ export async function probeMogrt(path: string): Promise<string> {
   );
 
   for (const rawItem of inserted) {
-    const item = rawItem as InsertedItemLike;
-    if (typeof item.getComponentChain !== "function") {
-      continue;
-    }
-    try {
-      const name = await item.getName();
-      const duration = (await item.getDuration()).seconds;
-      out.push("");
-      out.push(`item "${name}" · default duration ${duration.toFixed(2)}s`);
-
-      const chain = await item.getComponentChain();
-      // Chain reads need lockedAccess (step-2 record); its callback is sync,
-      // so collect refs inside and await the async names outside.
-      const collected: { component: ComponentLike; params: string[] }[] = [];
-      project.lockedAccess(() => {
-        const count = chain.getComponentCount();
-        for (let i = 0; i < count; i++) {
-          const component = chain.getComponentAtIndex(i);
-          const params: string[] = [];
-          for (let j = 0; j < component.getParamCount(); j++) {
-            params.push(component.getParam(j).displayName);
-          }
-          collected.push({ component, params });
-        }
-      });
-
-      for (const { component, params } of collected) {
-        const matchName = await component.getMatchName();
-        const displayName = await component.getDisplayName();
-        out.push(`  component "${displayName}" (matchName: ${matchName})`);
-        for (const param of params) {
-          out.push(`    param "${param}"`);
-        }
-      }
-    } catch (err) {
-      out.push(`  ✖ dump failed on this item: ${message(err)}`);
-    }
+    await dumpItem(project, rawItem, out);
   }
 
   const report = out.join("\n");
