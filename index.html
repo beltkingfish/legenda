@@ -1,0 +1,33 @@
+<html>
+<head>
+  <!-- UXP defers script execution until the DOM is parsed; no defer attr needed. -->
+  <link rel="stylesheet" href="src/panel.css" />
+  <script src="dist/main.js"></script>
+</head>
+<body>
+  <header class="panel-header">
+    <span class="panel-title">Legenda</span>
+    <span class="panel-phase">Phase 1 · scaffold</span>
+  </header>
+
+  <main class="panel-body">
+    <!-- Dev-only probe (Phase 1, step 1). Replaced by the Source section
+         (UI_COMPONENTS.md §1) once import lands. -->
+    <section class="section">
+      <h2 class="section-title">Connection check</h2>
+      <p class="hint">
+        Confirms the panel can reach the Premiere API. Open a project with an
+        active sequence, then:
+      </p>
+      <button id="probe-button" class="button button-primary">
+        Check active sequence
+      </button>
+      <p id="probe-output" class="probe-output" aria-live="polite"></p>
+    </section>
+  </main>
+
+  <footer class="panel-footer">
+    <span class="hint">Captions render as MOGRT instances on a plugin-owned track.</span>
+  </footer>
+</body>
+</html>

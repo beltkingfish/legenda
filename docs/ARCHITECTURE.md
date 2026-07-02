@@ -78,6 +78,10 @@ CaptionProject {
 ## 8. Tooling
 - TypeScript recommended; pull `@adobe/premierepro` type defs; lint with
   `@adobe/eslint-plugin-premierepro`.
+- Type defs are versioned to Premiere releases and start at 26.2.0 — there are no defs
+  for the 25.6 floor. Defs describe the newest API; runtime-guard anything not certain
+  to exist in 25.6. UXP DOM types come from `@adobe/cc-ext-uxp-types` (exclude lib
+  "DOM"); it omits some real runtime surface (global `require`, `classList`).
 - Load/debug/package with UXP Developer Tool (UDT) v2.2.1+. Enable Developer Mode in
   Premiere and restart. `manifest.json` must declare permissions (localFileSystem for
   SRT/preset I/O). No network permission needed in Phase 1.

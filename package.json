@@ -1,0 +1,32 @@
+{
+  "name": "legenda",
+  "version": "0.1.0",
+  "description": "UXP captions plugin for Adobe Premiere — expressive animated captions from a transcript or SRT.",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "clean": "rm -rf dist"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/beltkingfish/legenda.git"
+  },
+  "license": "MIT",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/beltkingfish/legenda/issues"
+  },
+  "homepage": "https://github.com/beltkingfish/legenda#readme",
+  "devDependencies": {
+    "@adobe/cc-ext-uxp-types": "^7.3.1",
+    "@adobe/eslint-plugin-premierepro": "^26.3.0",
+    "@adobe/premierepro": "^26.3.0",
+    "@typescript-eslint/parser": "^8.62.1",
+    "eslint": "^9.39.4",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.62.1"
+  }
+}
