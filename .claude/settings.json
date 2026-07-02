@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "_comment": "Project-scoped Claude Code settings. Hooks here are advisory guardrails for the anti-drift 'update ritual'. Adapt the command to match the hook setup you used on your previous project. CLAUDE.md carries the behavioral contract; these hooks add a deterministic nudge.",
+  "permissions": {
+    "allow": [
+      "Read(./**)",
+      "Edit(./docs/**)",
+      "Edit(./presets/**)",
+      "Edit(./src/**)",
+      "Bash(npm run *)",
+      "Bash(npx *)",
+      "Bash(git status)",
+      "Bash(git diff *)"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "Bash(rm *)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[legenda] Session ending. Before you stop: is docs/PROJECT_STATUS.md updated to reflect what changed this session? If scope or a platform constraint changed, are SPECIFICATION.md / ARCHITECTURE.md updated too?'"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "schemaVersion": "1.0.0",
+  "note": "StyleDef shape is shared by presets, custom styles, and exported style files. Values are starting points; the plugin maps these 1:1 to exposed MOGRT parameters. Colors are hex; sizes are in the MOGRT's design units unless noted.",
+  "presets": [
+    {
+      "id": "clean",
+      "name": "Clean",
+      "description": "Minimal, highly readable. Interviews and narrative.",
+      "typography": {
+        "fontFamily": "Montserrat",
+        "fontWeight": "Bold",
+        "fontSize": 48,
+        "lineHeight": 1.15,
+        "letterSpacing": 0,
+        "alignment": "center"
+      },
+      "textColor": "#FFFFFF",
+      "background": {
+        "enabled": true,
+        "color": "#000000",
+        "opacity": 0.6,
+        "cornerRadius": 8,
+        "paddingX": 24,
+        "paddingY": 12
+      },
+      "outline": { "enabled": false, "width": 0, "color": "#000000" },
+      "dropShadow": { "enabled": false, "color": "#000000", "opacity": 0.5, "blur": 6, "distance": 4 }
+    },
+    {
+      "id": "bold",
+      "name": "Bold",
+      "description": "High-contrast, energetic. Promo and fast-paced content.",
+      "typography": {
+        "fontFamily": "Montserrat",
+        "fontWeight": "ExtraBold",
+        "fontSize": 60,
+        "lineHeight": 1.1,
+        "letterSpacing": 0.5,
+        "alignment": "center"
+      },
+      "textColor": "#FFE94A",
+      "background": {
+        "enabled": true,
+        "color": "#101010",
+        "opacity": 0.85,
+        "cornerRadius": 6,
+        "paddingX": 20,
+        "paddingY": 10
+      },
+      "outline": { "enabled": false, "width": 0, "color": "#000000" },
+      "dropShadow": { "enabled": true, "color": "#000000", "opacity": 0.6, "blur": 8, "distance": 3 }
+    },
+    {
+      "id": "minimal",
+      "name": "Minimal",
+      "description": "Text only, maximum transparency. Cinematic and visual-heavy.",
+      "typography": {
+        "fontFamily": "Montserrat",
+        "fontWeight": "SemiBold",
+        "fontSize": 44,
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "alignment": "center"
+      },
+      "textColor": "#FFFFFF",
+      "background": { "enabled": false, "color": "#000000", "opacity": 0.0, "cornerRadius": 0, "paddingX": 0, "paddingY": 0 },
+      "outline": { "enabled": true, "width": 2, "color": "#000000" },
+      "dropShadow": { "enabled": true, "color": "#000000", "opacity": 0.55, "blur": 10, "distance": 0 }
+    }
+  ],
+  "defaults": {
+    "animation": "fade",
+    "timing": { "minSec": 1.33, "maxSec": 7.0, "transitionMs": 150, "gapMs": 100 },
+    "wrapping": { "maxLinesVisible": 2, "targetLineChars": 32 }
+  }
+}

@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output / bundled plugin
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# UXP packaging artifacts
+*.ccx
+*.uxpaddon
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Env / secrets (none needed in Phase 1, but guard against accidents)
+.env
+.env.*
+!.env.example
+
+# Editor / OS cruft
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Claude Code local (personal, not shared)
+.claude/settings.local.json
+
+# Test / coverage
+coverage/
+.nyc_output/
