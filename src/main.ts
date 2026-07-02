@@ -4,7 +4,7 @@
 import presets from "../presets/style-presets.json";
 import { pickMogrtFile, pickSrtFile } from "./files";
 import type { ImportedCaptions } from "./model";
-import { probeMogrt, probeSelection } from "./mogrtProbe";
+import { probeMogrt, probeSelection, writeTestOnSelection } from "./mogrtProbe";
 import {
   exportTranscriptJson,
   findTranscribedClips,
@@ -29,6 +29,7 @@ const lineLengthInput = el<HTMLInputElement>("line-length-input");
 const linePreview = el<HTMLElement>("line-preview");
 const mogrtProbeButton = el<HTMLButtonElement>("mogrt-probe-button");
 const selectionProbeButton = el<HTMLButtonElement>("selection-probe-button");
+const writeTestButton = el<HTMLButtonElement>("write-test-button");
 const mogrtProbeOutput = el<HTMLElement>("mogrt-probe-output");
 const probeButton = el<HTMLButtonElement>("probe-button");
 const probeOutput = el<HTMLElement>("probe-output");
@@ -230,6 +231,24 @@ async function onSelectionProbeClick(): Promise<void> {
 
 selectionProbeButton.addEventListener("click", () => {
   void onSelectionProbeClick();
+});
+
+async function onWriteTestClick(): Promise<void> {
+  writeTestButton.disabled = true;
+  mogrtProbeOutput.className = "probe-output";
+  mogrtProbeOutput.textContent = "Writing test values…";
+  try {
+    mogrtProbeOutput.textContent = await writeTestOnSelection();
+  } catch (err) {
+    mogrtProbeOutput.className = "probe-output is-error";
+    mogrtProbeOutput.textContent = `Write test failed: ${errorText(err)}`;
+  } finally {
+    writeTestButton.disabled = false;
+  }
+}
+
+writeTestButton.addEventListener("click", () => {
+  void onWriteTestClick();
 });
 
 // ---------------------------------------------------------------------------

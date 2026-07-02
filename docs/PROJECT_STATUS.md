@@ -196,8 +196,13 @@ Last updated: 2026-07-02.
   template is otherwise fully usable. MOGRT_SPEC Tier 1 updated.
 - Confirmed the UHD downscale path: Motion component exposes `Scale`. Item duration
   3.97s ≈ the 4s comp.
-- **Next**: prototype setting a Capsule param (read by displayName →
-  createSetValueAction) — the last unknown before writing the renderer (step 7).
+- **Write prototype shipped (awaiting live run)**: panel "Write test values" button
+  → `writeTestOnSelection` finds the `AE.ADBE Capsule` on the selected clip and sets
+  one param of each type the renderer needs — `Line Text` (string), `Background
+  Opacity` (number), `Text Color` (`ppro.Color(1,0,0,1)`, **0–1 float assumed**) —
+  each via `createKeyframe` + `createSetValueAction` in the transaction idiom, with
+  readback via `getValueAtTime`. Maintainer: select the inserted MOGRT, click it,
+  paste the report. Confirms the write path (last unknown) + the color value range.
 
 ## Discovered API limitations (append as found)
 - Caption-track text read/write: not available (as of research date).
