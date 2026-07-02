@@ -16,6 +16,7 @@
     // IIFE (UXP <script> tags provide no CommonJS wrapper), with the host
     // modules ("premierepro", "uxp") left as runtime require() calls.
     "noEmit": true,
+    "resolveJsonModule": true,
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true
