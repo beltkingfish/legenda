@@ -2,8 +2,8 @@
 
 Update this at the end of any session with meaningful changes (see CLAUDE.md → Update ritual).
 
-Current phase: **Phase 1 — step 6 in progress: spec + probe shipped; template authoring
-is with the maintainer.**
+Current phase: **Phase 1 — step 6 in progress: fade template authored; param surface
+confirmed reachable via probe. Next: prototype setting a param, then step 7 renderer.**
 Last updated: 2026-07-02.
 
 ## Done
@@ -175,23 +175,29 @@ Last updated: 2026-07-02.
   array — same meaning as ARCHITECTURE §4's `wordRefs[]`, cheaper to hold.
 
 ## Step 6 probe findings (2026-07-02, Premiere 26.3.0, legenda-fade-v1.mogrt)
-- **Q1 answered**: `insertMogrtFromPath` REJECTS an out-of-range video track index
-  ("Invalid parameter."); insert succeeded on an existing track. No auto-create —
-  the renderer needs another way to obtain the plugin-owned track (re-scan defs for
-  track-add actions; or `createInsertProjectItemAction`'s documented auto-create as a
-  workaround; or topmost-empty-track + ask the user).
-- **Q2 OPEN AND ALARMING**: the inserted instance's component chain contains ONLY
-  intrinsic clip components — "Opacity" (AE.ADBE Opacity) and "Motion" (AE.ADBE
-  Motion, incl. Scale — confirms the UHD downscale path). **No Essential Graphics /
-  Graphic Parameters component**; none of the template's exposed params (Line Text
-  etc.) surfaced. The type defs have no graphics-param API; Adobe's samples insert
-  MOGRTs but never set params; official docs are silent. If EG params are truly
-  unreachable, the render design (ARCHITECTURE §3) is blocked as-is.
-- Next diagnostic: "Dump selected clip" probe — dump the chain of the previously
-  inserted (now fully loaded) instance to rule out lazy population of the graphics
-  component. Then: ask on the Creative Cloud developer forums / file with Adobe.
-- Also noted: Motion has an unnamed param (displayName " "); item default duration
-  3.97s matches the 4s comp.
+- **Q1 answered — no auto-create.** `insertMogrtFromPath` REJECTS an out-of-range
+  video track index ("Invalid parameter."); insert succeeded on an existing track.
+  Renderer needs another way to obtain the plugin-owned track (re-scan defs for a
+  track-add action; or `createInsertProjectItemAction`'s documented auto-create; or
+  insert on the topmost existing track).
+- **Q2 RESOLVED — exposed params ARE reachable, but populate lazily.** The
+  insert-time dump showed ONLY intrinsic Opacity + Motion (initially alarming). The
+  "Dump selected clip" probe on the now-loaded instance showed the full picture:
+  a **`Graphic Parameters` component (matchName `AE.ADBE Capsule`)** with every
+  exposed param present by exact display name — `Line Text`, `Text Color`,
+  `Background Color`, `Background Opacity`, `Shadow Opacity`, `Legenda Version`.
+  So the graphics component is appended AFTER the clip finishes loading. Renderer:
+  insert → poll chain for `AE.ADBE Capsule` → then set params. (Now ARCHITECTURE
+  hard constraint #6.)
+- **Checkbox anomaly**: the `Background` checkbox surfaced with an EMPTY displayName
+  (the `param ""` between Text Color and Background Color) — unmatchable by name.
+  Decision: drop the checkbox; encode background on/off via `Background Opacity` 0,
+  matching the shadow/outline pattern. Fold into the next fade export; current
+  template is otherwise fully usable. MOGRT_SPEC Tier 1 updated.
+- Confirmed the UHD downscale path: Motion component exposes `Scale`. Item duration
+  3.97s ≈ the 4s comp.
+- **Next**: prototype setting a Capsule param (read by displayName →
+  createSetValueAction) — the last unknown before writing the renderer (step 7).
 
 ## Discovered API limitations (append as found)
 - Caption-track text read/write: not available (as of research date).

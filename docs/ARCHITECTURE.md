@@ -38,6 +38,14 @@ Last updated: 2026-07-02. Read the **Hard constraints** section before designing
    Component-chain reads (getComponentAtIndex/getParam) also require lockedAccess.
    `insertMogrtFromPath` is the exception: called inside lockedAccess, no transaction
    (per the premiere-api sample), returning inserted track items synchronously.
+6. **MOGRT exposed params populate LAZILY after insert** (confirmed 26.3, step-6 probe).
+   Right after `insertMogrtFromPath` the item's component chain has only intrinsic
+   `AE.ADBE Opacity` + `AE.ADBE Motion`; the `Graphic Parameters` component
+   (matchName `AE.ADBE Capsule`) carrying the exposed params appears a moment later.
+   => The renderer must **insert, then poll the chain for `AE.ADBE Capsule`** (bounded
+   retries with a short delay) before reading/writing exposed params. Params match by
+   exposed `displayName`; **checkbox params report an empty displayName** — encode
+   booleans as a 0/max numeric param instead (see docs/MOGRT_SPEC.md).
 
 ## 3. Rendering model (MOGRT-driven)
 - Ship one or more **pre-authored MOGRT templates** (built in Premiere's graphics tools or

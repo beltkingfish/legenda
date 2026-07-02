@@ -24,9 +24,15 @@ exposed parameters. All animation lives inside the template (ARCHITECTURE §2.3)
 | `Legenda Version` | slider, value `1` | — | Renderer checks presence/value to confirm the template is ours. |
 | `Line Text` | text (source text) | — | The caption line. |
 | `Text Color` | color (Fill effect) | `textColor` | Fill effect flattens per-glyph color — fine until Phase 2 per-word color. |
-| `Background` | checkbox | `background.enabled` | |
 | `Background Color` | color (shape fill) | `background.color` | |
-| `Background Opacity` | slider 0–100 | `background.opacity` (×100) | |
+| `Background Opacity` | slider 0–100 | `background.opacity` (×100); `0` ⇒ `background.enabled: false` — **no checkbox** | See note below. |
+
+**No `Background` checkbox.** The probe (2026-07-02) showed a checkbox param
+surfaces with an **empty displayName** — unmatchable by our name-based lookup.
+So background on/off is encoded the same way as shadow/outline: `Background
+Opacity` `0` means off. Template's bg-opacity expression drops the checkbox
+factor. (Fold into the next fade export; the current template still works for
+everything except driving the checkbox by name.)
 
 ### Tier 2 — desired (native EG exposure exists; add after Tier 1 works)
 | Display name (exact) | EG control | Maps to StyleDef |
@@ -100,12 +106,29 @@ scope call, update SPECIFICATION.md if taken).
    dumped component/param names against this spec; paste the dump into
    PROJECT_STATUS's step-6 record.
 
-## Open questions the probe answers (from step-2 record)
-1. Does `insertMogrtFromPath` auto-create a track when given an out-of-range
-   video track index?
-2. Under which component (matchName) do EG params surface, with which
-   `displayName`s and value types?
-3. Can params be set immediately after insert in the same/next lockedAccess?
-   (Answered once a text param exists to set — our template's `Line Text`.)
-4. Downscale sharpness: insert the UHD template into both a UHD and a 1080
+## Runtime facts (confirmed by the step-6 probe, 2026-07-02, Premiere 26.3.0)
+- **Exposed params live in a `Graphic Parameters` component, matchName
+  `AE.ADBE Capsule`**, appended after the intrinsic `AE.ADBE Opacity` and
+  `AE.ADBE Motion` components in the track item's component chain.
+- **The Capsule component populates LAZILY.** Immediately after
+  `insertMogrtFromPath`, the chain has ONLY Opacity + Motion. On the loaded clip
+  (dumped from a timeline selection moments later) the Capsule and all params are
+  present. **Renderer must insert, then poll the chain for `AE.ADBE Capsule`
+  before setting params** (bounded retry — see ARCHITECTURE hard constraint).
+- All exposed params surface with their **exact EG display names** (`Line Text`,
+  `Text Color`, `Background Color`, `Background Opacity`, `Shadow Opacity`,
+  `Legenda Version`) — name-based matching is viable. Exception: checkboxes
+  (empty displayName — see Tier 1 note).
+- `insertMogrtFromPath` **rejects out-of-range track indices** ("Invalid
+  parameter."); it does NOT auto-create a track (open question #1 = no).
+
+## Open questions still to answer
+1. **Set a Capsule param**: read a `ComponentParam` from the Capsule by matching
+   `displayName`, then `createSetValueAction(createKeyframe(value))` for text/
+   color/number — confirm each type writes. (This is the last unknown before the
+   renderer; prototype next.)
+2. Plugin-owned track creation without auto-create: check defs for a track-add
+   action, or use `createInsertProjectItemAction`'s documented auto-create, or
+   insert on the topmost existing track and manage index bookkeeping.
+3. Downscale sharpness: insert the UHD template into both a UHD and a 1080
    sequence (scaled to fit) and confirm text renders crisply in each.
