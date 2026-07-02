@@ -2,7 +2,8 @@
 
 Update this at the end of any session with meaningful changes (see CLAUDE.md → Update ritual).
 
-Current phase: **Phase 1 — steps 1–5 done. Next: step 6 (MOGRT authoring + prototype).**
+Current phase: **Phase 1 — step 6 in progress: spec + probe shipped; template authoring
+is with the maintainer.**
 Last updated: 2026-07-02.
 
 ## Done
@@ -107,8 +108,19 @@ Last updated: 2026-07-02.
   the preview live. UXP quirk noted: `<input type="number">` works but renders rough
   (value display/styling) — revisit in the style-panel pass.
 
+- 2026-07-02 — Step 6 groundwork: `docs/MOGRT_SPEC.md` written (exposed-param contract,
+  tiered required/desired/deferred; fade behavior spec; two candidate teleprompter
+  strategies with prototype order; AE authoring workflow). Panel gained a dev **MOGRT
+  probe**: pick a .mogrt → insert at 0:00 with an out-of-range track index → dump every
+  component matchName/displayName and param displayName. Answers step-2 open questions
+  1–2 with *any* .mogrt; question 3 (setting params post-insert) needs our template's
+  `Line Text` param.
+
 ## In progress
-- (none)
+- **Maintainer action**: author `mogrt/legenda-fade-v1.mogrt` per docs/MOGRT_SPEC.md
+  (Tier 1 params minimum), then run the panel's MOGRT probe on it and paste the dump
+  here. Any installed/stock .mogrt can exercise the probe sooner to answer the
+  auto-create-track and param-surface questions.
 
 ## Open questions for the MOGRT prototype (step 6 — verify live)
 - No explicit "add track" API found. `createInsertProjectItemAction` docs: an
