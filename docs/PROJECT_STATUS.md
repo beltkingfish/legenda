@@ -2,7 +2,7 @@
 
 Update this at the end of any session with meaningful changes (see CLAUDE.md → Update ritual).
 
-Current phase: **Phase 1 — step 1 built; awaiting manual UDT load check.**
+Current phase: **Phase 1 — steps 1–2 done. Next: step 3 (transcript import).**
 Last updated: 2026-07-02.
 
 ## Done
@@ -21,16 +21,56 @@ Last updated: 2026-07-02.
   `const ppro = require("premierepro") as premierepro` with type-only imports.
 - 2026-07-02 — Confirmed `sample-panels/premiere-api/assets/transcript_format_spec.json`
   exists at that path in AdobeDocs/uxp-premiere-pro-samples (needed for step 3).
+- 2026-07-02 — Step 1 verified live: panel loads via UDT into Premiere 26.3.0 (after
+  Settings → Plugins → Enable developer mode + restart). Probe returns the project name;
+  the no-active-sequence path degrades gracefully. Dev machine runs Premiere 26.3.0 —
+  matches our pinned type defs exactly.
+
+- 2026-07-02 — Step 2: API surface verified against `@adobe/premierepro@26.3.0` defs AND
+  live usage in the AdobeDocs `premiere-api` sample. Everything the architecture needs
+  exists. Verified signatures:
+  - **MOGRT insert**: `ppro.SequenceEditor.getEditor(sequence)` →
+    `editor.insertMogrtFromPath(path, tickTime, videoTrackIdx, audioTrackIdx)` returns
+    `Array<VideoClipTrackItem|AudioClipTrackItem>` synchronously; sample calls it inside
+    `project.lockedAccess()` (no executeTransaction). Also `insertMogrtFromLibrary(...)`
+    and `SequenceEditor.getInstalledMogrtPath()`.
+  - **Transaction idiom** (all timeline mutations): build Action objects, then
+    `project.lockedAccess(() => project.executeTransaction(ca => ca.addAction(a), "undo label"))`.
+  - **ComponentParam**: `sequence.getVideoTrack(i)` →
+    `track.getTrackItems(ppro.Constants.TrackItemType.CLIP, false)` →
+    `item.getComponentChain()` → (inside lockedAccess) `chain.getComponentAtIndex(i)` /
+    `getComponentCount()` → `component.getParam(idx)` / `getParamCount()` /
+    `getMatchName()`. Writes: `param.createSetTimeVaryingAction(false)` then
+    `param.createKeyframe(value)` + `param.createSetValueAction(keyframe, true)`, executed
+    via the transaction idiom. Reads: `getValueAtTime(t)`, `getStartValue()`.
+    **No get-by-name API** — iterate and match `param.displayName` /
+    `component.getMatchName()`; we control exposed names in our own MOGRT.
+    (`getMGTComponent` from ExtendScript does not exist in UXP.)
+  - **Transcript export**: `ppro.ClipProjectItem.cast(projectItem)` →
+    `ppro.Transcript.hasTranscript(clip)` (sync bool) →
+    `await ppro.Transcript.exportToJSON(clip)` → JSON string. (Import direction also
+    exists: `importFromJSON` + `createImportTextSegmentsAction`.)
+  - **Timing/trim** (for the renderer): `ppro.TickTime.createWithSeconds(s)` /
+    `createWithTicks(str)` / `TIME_ZERO`; on track items `createSetStartAction`,
+    `createSetEndAction`, `createSetInPoint/OutPointAction`, `createMoveAction`,
+    `getStartTime/getEndTime/getDuration`.
+  - **Plugin-track cleanup** (regeneration): `ppro.TrackItemSelection.createEmptySelection(cb)`
+    → `selection.addItem(item)` → `sequenceEditor.createRemoveItemsAction(selection,
+    ripple, mediaType)` — programmatic clear without touching user selection.
 
 ## In progress
-- Manual check (needs Premiere + UDT): load manifest.json via UDT, confirm the panel
-  appears under Window → UXP Plugins, click "Check active sequence", see project +
-  sequence names. Also note whether `sp-` elements render (we used plain HTML for now).
+- (none)
+
+## Open questions for the MOGRT prototype (step 6 — verify live)
+- No explicit "add track" API found. `createInsertProjectItemAction` docs: an
+  out-of-range track index creates a new track. Whether `insertMogrtFromPath` behaves
+  the same is unverified — decide how the plugin-owned track gets created.
+- How a MOGRT's exposed params (esp. the text field) surface in the component chain
+  (component matchName, param displayName, value type for text) — needs a real MOGRT.
+- Whether params on items returned by `insertMogrtFromPath` are settable immediately
+  after insert within the same lockedAccess scope.
 
 ## Next (Phase 1 build order)
-2. Verify the remaining Premiere API surface: confirm actual method names/signatures for
-   MOGRT insert, ComponentParam get/set, and transcript export — against the
-   `@adobe/premierepro` TS defs and the AdobeDocs samples. Record findings here.
 3. Read `transcript_format_spec.json` from the Adobe samples repo; implement transcript
    import → internal word model.
 4. SRT parser → internal word model (interpolate word timing within cues).
@@ -63,3 +103,8 @@ Last updated: 2026-07-02.
 - `@adobe/cc-ext-uxp-types` gaps: global `require` not declared (we declare it in
   src/globals.d.ts); `Element#classList` missing from defs (use `className`); standard
   "DOM" lib must be excluded to avoid conflicts (per its README).
+- UXP CSS (observed in Premiere 26.3, first live load): flexbox `gap` is ignored — use
+  margins; flex containers centered children until `align-items: stretch` was set
+  explicitly; `<button>` keeps a native grey background — our `background-color` on
+  `.button-primary` was not applied (cosmetic; investigate in the style-panel pass,
+  possibly by switching to `sp-button` if it renders).
