@@ -22,6 +22,9 @@ body {
   color: var(--text);
   font-family: "Adobe Clean", "Source Sans Pro", system-ui, sans-serif;
   font-size: 12px;
+  /* UXP rendered header/footer content centered; be explicit everywhere
+     alignment matters (harmless in a conforming engine). */
+  text-align: left;
 }
 
 body {
@@ -34,7 +37,9 @@ body {
 
 .panel-header {
   display: flex;
+  justify-content: flex-start;
   align-items: baseline;
+  text-align: left;
   padding: 10px 12px 8px;
   border-bottom: 1px solid var(--border);
 }
@@ -55,6 +60,9 @@ body {
 }
 
 .panel-body {
+  /* Explicit display: UXP may treat semantic elements (main/header/footer)
+     as unknown → inline. */
+  display: block;
   flex: 1;
   overflow-y: auto;
   padding: 12px;
@@ -128,6 +136,8 @@ body {
 }
 
 .panel-footer {
+  display: block;
+  text-align: left;
   padding: 6px 12px 8px;
   border-top: 1px solid var(--border);
 }

@@ -27,9 +27,11 @@ Last updated: 2026-07-02. Read the **Hard constraints** section before designing
    plugin only inserts instances and sets **exposed** params + timing.
 4. **Spectrum Web Components are not fully supported** in Premiere UXP yet. Use supported
    `sp-` elements and standard HTML/CSS themed to Premiere's dark UI. UXP CSS deviates
-   from browsers (observed 26.3): flexbox `gap` ignored (use margins); flex children
-   were centered until `align-items` was set explicitly; `<button>` background-color
-   is not applied over the native styling.
+   from browsers (observed 26.3): flexbox `gap` ignored (use margins, confirmed live);
+   header/footer content rendered centered — `align-items: stretch` alone did NOT fix
+   it, so set `text-align`, `justify-content`, and `display` explicitly and never rely
+   on UA defaults (semantic elements may be treated as unknown/inline); `<button>`
+   background-color is not applied over the native styling.
 5. **All timeline mutations are Action objects run in a transaction.** Nothing mutates
    directly: create `Action`s (createSet*/createInsert*/createRemove*), then execute via
    `project.lockedAccess(() => project.executeTransaction(ca => ca.addAction(a), "label"))`.
