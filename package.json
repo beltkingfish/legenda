@@ -9,7 +9,8 @@
     "watch": "npm run bundle -- --watch",
     "typecheck": "tsc",
     "lint": "eslint src",
-    "clean": "rm -rf dist"
+    "test": "esbuild tests/*.test.ts --bundle --platform=node --format=esm --outdir=build/tests --out-extension:.js=.mjs && node --test build/tests/*.test.mjs",
+    "clean": "rm -rf dist build"
   },
   "repository": {
     "type": "git",
