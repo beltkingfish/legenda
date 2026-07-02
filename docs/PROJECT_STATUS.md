@@ -2,7 +2,7 @@
 
 Update this at the end of any session with meaningful changes (see CLAUDE.md → Update ritual).
 
-Current phase: **Phase 1 — step 4 built; awaiting live check with a real .srt file.**
+Current phase: **Phase 1 — steps 1–4 done (both ingress paths verified live). Next: step 5 (wrapper).**
 Last updated: 2026-07-02.
 
 ## Done
@@ -86,10 +86,13 @@ Last updated: 2026-07-02.
   metadata blocks; strips `<tag>` and `{code}` markup. Parser smoke-tested in Node
   (11 assertions incl. failure mode).
 
+- 2026-07-02 — Step 4 verified live (Premiere 26.3.0): picker opened, a
+  Premiere-exported .srt imported as 203 words — identical count to the transcript
+  import of the same content, cross-validating both parsers. localFileSystem access
+  worked without issues.
+
 ## In progress
-- Manual check (needs Premiere): click "Import SRT file…", pick any .srt → counts line
-  shows "Imported srt · N words · file name". First use of the localFileSystem
-  permission ("request" mode) — note whether Premiere/UXP shows a permission prompt.
+- (none)
 
 ## Open questions for the MOGRT prototype (step 6 — verify live)
 - No explicit "add track" API found. `createInsertProjectItemAction` docs: an
