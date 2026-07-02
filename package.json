@@ -4,9 +4,10 @@
   "description": "UXP captions plugin for Adobe Premiere — expressive animated captions from a transcript or SRT.",
   "private": true,
   "scripts": {
-    "build": "tsc",
-    "watch": "tsc --watch",
-    "typecheck": "tsc --noEmit",
+    "build": "npm run typecheck && npm run bundle",
+    "bundle": "esbuild src/main.ts --bundle --format=iife --outfile=dist/main.js --external:premierepro --external:uxp",
+    "watch": "npm run bundle -- --watch",
+    "typecheck": "tsc",
     "lint": "eslint src",
     "clean": "rm -rf dist"
   },
@@ -25,6 +26,7 @@
     "@adobe/eslint-plugin-premierepro": "^26.3.0",
     "@adobe/premierepro": "^26.3.0",
     "@typescript-eslint/parser": "^8.62.1",
+    "esbuild": "^0.28.1",
     "eslint": "^9.39.4",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.62.1"
