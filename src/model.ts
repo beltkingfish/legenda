@@ -18,8 +18,8 @@ export interface CaptionSourceMeta {
   kind: "transcript" | "srt";
   /** BCP-47-ish code as reported by the source (e.g. "en-us"). */
   language?: string;
-  /** Name of the clip the transcript came from (transcript sources only). */
-  clipName?: string;
+  /** Where the captions came from: clip name (transcript) or file name (SRT). */
+  sourceName?: string;
   speakerNames: string[];
 }
 
