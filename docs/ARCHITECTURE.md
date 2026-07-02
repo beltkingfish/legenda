@@ -30,6 +30,12 @@ Last updated: 2026-07-02. Read the **Hard constraints** section before designing
    from browsers (observed 26.3): flexbox `gap` ignored (use margins); flex children
    were centered until `align-items` was set explicitly; `<button>` background-color
    is not applied over the native styling.
+5. **All timeline mutations are Action objects run in a transaction.** Nothing mutates
+   directly: create `Action`s (createSet*/createInsert*/createRemove*), then execute via
+   `project.lockedAccess(() => project.executeTransaction(ca => ca.addAction(a), "label"))`.
+   Component-chain reads (getComponentAtIndex/getParam) also require lockedAccess.
+   `insertMogrtFromPath` is the exception: called inside lockedAccess, no transaction
+   (per the premiere-api sample), returning inserted track items synchronously.
 
 ## 3. Rendering model (MOGRT-driven)
 - Ship one or more **pre-authored MOGRT templates** (built in Premiere's graphics tools or
