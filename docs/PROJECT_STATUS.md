@@ -2,7 +2,7 @@
 
 Update this at the end of any session with meaningful changes (see CLAUDE.md → Update ritual).
 
-Current phase: **Phase 1 — step 1 built; awaiting manual UDT load check.**
+Current phase: **Phase 1 — step 1 done (scaffold verified in Premiere). Next: step 2.**
 Last updated: 2026-07-02.
 
 ## Done
@@ -21,11 +21,13 @@ Last updated: 2026-07-02.
   `const ppro = require("premierepro") as premierepro` with type-only imports.
 - 2026-07-02 — Confirmed `sample-panels/premiere-api/assets/transcript_format_spec.json`
   exists at that path in AdobeDocs/uxp-premiere-pro-samples (needed for step 3).
+- 2026-07-02 — Step 1 verified live: panel loads via UDT into Premiere 26.3.0 (after
+  Settings → Plugins → Enable developer mode + restart). Probe returns the project name;
+  the no-active-sequence path degrades gracefully. Dev machine runs Premiere 26.3.0 —
+  matches our pinned type defs exactly.
 
 ## In progress
-- Manual check (needs Premiere + UDT): load manifest.json via UDT, confirm the panel
-  appears under Window → UXP Plugins, click "Check active sequence", see project +
-  sequence names. Also note whether `sp-` elements render (we used plain HTML for now).
+- (none)
 
 ## Next (Phase 1 build order)
 2. Verify the remaining Premiere API surface: confirm actual method names/signatures for
@@ -63,3 +65,8 @@ Last updated: 2026-07-02.
 - `@adobe/cc-ext-uxp-types` gaps: global `require` not declared (we declare it in
   src/globals.d.ts); `Element#classList` missing from defs (use `className`); standard
   "DOM" lib must be excluded to avoid conflicts (per its README).
+- UXP CSS (observed in Premiere 26.3, first live load): flexbox `gap` is ignored — use
+  margins; flex containers centered children until `align-items: stretch` was set
+  explicitly; `<button>` keeps a native grey background — our `background-color` on
+  `.button-primary` was not applied (cosmetic; investigate in the style-panel pass,
+  possibly by switching to `sp-button` if it renders).
