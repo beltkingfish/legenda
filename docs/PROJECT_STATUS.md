@@ -2,7 +2,7 @@
 
 Update this at the end of any session with meaningful changes (see CLAUDE.md → Update ritual).
 
-Current phase: **Phase 1 — step 3 built; awaiting live check with a real transcript.**
+Current phase: **Phase 1 — steps 1–3 done (transcript import verified live). Next: step 4 (SRT).**
 Last updated: 2026-07-02.
 
 ## Done
@@ -71,14 +71,15 @@ Last updated: 2026-07-02.
   IIFE, host modules external so `require("premierepro")` stays a runtime call).
   Needed for multi-file src/; tsc is typecheck-only now.
 
+- 2026-07-02 — Step 3 verified live (Premiere 26.3.0): Source scan found the transcript
+  on a Text-panel-transcribed sequence; import reported 203 words · 1 speaker · en-us.
+  **Answered**: sequence transcription DOES surface as clip-level transcripts —
+  `Transcript.hasTranscript` is true on the sequence's clip project items, so the
+  clip-scan ingress design holds. Parser accepted Premiere's real export unchanged
+  (spec-conformant).
+
 ## In progress
-- Manual check (needs Premiere + a transcribed sequence): reload panel → Source section
-  should find the transcript, Import should report word/speaker counts. **Open
-  question this test answers**: Premiere's Text panel transcribes the *sequence* —
-  whether that surfaces as clip-level transcripts (`Transcript.hasTranscript` on the
-  sequence's clip project items, which is what we scan) is unverified. If the scan
-  finds nothing on a transcribed sequence, ingress needs a rethink (record findings
-  here either way).
+- (none)
 
 ## Open questions for the MOGRT prototype (step 6 — verify live)
 - No explicit "add track" API found. `createInsertProjectItemAction` docs: an
