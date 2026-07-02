@@ -103,8 +103,10 @@ Last updated: 2026-07-02.
 - `@adobe/cc-ext-uxp-types` gaps: global `require` not declared (we declare it in
   src/globals.d.ts); `Element#classList` missing from defs (use `className`); standard
   "DOM" lib must be excluded to avoid conflicts (per its README).
-- UXP CSS (observed in Premiere 26.3, first live load): flexbox `gap` is ignored — use
-  margins; flex containers centered children until `align-items: stretch` was set
-  explicitly; `<button>` keeps a native grey background — our `background-color` on
-  `.button-primary` was not applied (cosmetic; investigate in the style-panel pass,
-  possibly by switching to `sp-button` if it renders).
+- UXP CSS (observed in Premiere 26.3, live): flexbox `gap` is ignored — use margins
+  (fix confirmed live). Header/footer content rendered centered; `align-items: stretch`
+  did NOT fix it (disproved live) — current fix sets `text-align: left`,
+  `justify-content: flex-start`, and explicit `display` on semantic elements, all at
+  once; exact culprit not isolated. `<button>` keeps a native grey background — our
+  `background-color` on `.button-primary` was not applied (cosmetic; investigate in the
+  style-panel pass, possibly by switching to `sp-button` if it renders).
