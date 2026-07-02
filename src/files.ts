@@ -5,6 +5,8 @@
 
 interface UxpFile {
   name: string;
+  /** Platform-native filesystem path — the bridge to host APIs that take paths. */
+  nativePath: string;
   read(options?: { format?: symbol }): Promise<string | ArrayBuffer>;
 }
 
@@ -31,4 +33,14 @@ export async function pickSrtFile(): Promise<{ name: string; text: string } | nu
     throw new Error(`Could not read "${file.name}" as text.`);
   }
   return { name: file.name, text };
+}
+
+/** Open a picker for a .mogrt file; the native path feeds insertMogrtFromPath. */
+export async function pickMogrtFile(): Promise<{ name: string; path: string } | null> {
+  const picked = await localFileSystem.getFileForOpening({ types: ["mogrt"] });
+  const file = Array.isArray(picked) ? picked[0] : picked;
+  if (!file) {
+    return null;
+  }
+  return { name: file.name, path: file.nativePath };
 }

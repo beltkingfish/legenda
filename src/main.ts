@@ -2,8 +2,9 @@
 // package.json "bundle". Sections follow UI_COMPONENTS.md.
 
 import presets from "../presets/style-presets.json";
-import { pickSrtFile } from "./files";
+import { pickMogrtFile, pickSrtFile } from "./files";
 import type { ImportedCaptions } from "./model";
+import { probeMogrt } from "./mogrtProbe";
 import {
   exportTranscriptJson,
   findTranscribedClips,
@@ -26,6 +27,8 @@ const importSrtButton = el<HTMLButtonElement>("import-srt-button");
 const rescanButton = el<HTMLButtonElement>("rescan-button");
 const lineLengthInput = el<HTMLInputElement>("line-length-input");
 const linePreview = el<HTMLElement>("line-preview");
+const mogrtProbeButton = el<HTMLButtonElement>("mogrt-probe-button");
+const mogrtProbeOutput = el<HTMLElement>("mogrt-probe-output");
 const probeButton = el<HTMLButtonElement>("probe-button");
 const probeOutput = el<HTMLElement>("probe-output");
 
@@ -184,6 +187,31 @@ lineLengthInput.addEventListener("input", () => {
 // Scan once on panel load; Premiere may not have a project open yet, which
 // the scan reports gracefully.
 void scanForTranscript();
+
+// ---------------------------------------------------------------------------
+// Dev probe (step 6): MOGRT insert + param discovery (docs/MOGRT_SPEC.md).
+
+async function onMogrtProbeClick(): Promise<void> {
+  try {
+    const picked = await pickMogrtFile();
+    if (!picked) {
+      return; // picker cancelled
+    }
+    mogrtProbeButton.disabled = true;
+    mogrtProbeOutput.className = "probe-output";
+    mogrtProbeOutput.textContent = `Inserting ${picked.name}…`;
+    mogrtProbeOutput.textContent = await probeMogrt(picked.path);
+  } catch (err) {
+    mogrtProbeOutput.className = "probe-output is-error";
+    mogrtProbeOutput.textContent = `MOGRT probe failed: ${errorText(err)}`;
+  } finally {
+    mogrtProbeButton.disabled = false;
+  }
+}
+
+mogrtProbeButton.addEventListener("click", () => {
+  void onMogrtProbeClick();
+});
 
 // ---------------------------------------------------------------------------
 // Dev probe (step 1): confirms panel ↔ Premiere API wiring.

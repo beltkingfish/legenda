@@ -33,6 +33,20 @@
       <ol id="line-preview" class="line-preview"></ol>
     </section>
 
+    <!-- Dev-only MOGRT probe (Phase 1, step 6 — docs/MOGRT_SPEC.md). -->
+    <section class="section">
+      <h2 class="section-title">MOGRT probe (dev)</h2>
+      <p class="hint">
+        Inserts a .mogrt at 0:00 on a new video track in the active sequence and
+        dumps its exposed components and parameters. Undo in Premiere to remove
+        the inserted clip.
+      </p>
+      <button id="mogrt-probe-button" class="button">
+        Insert MOGRT &amp; dump params…
+      </button>
+      <p id="mogrt-probe-output" class="probe-output" aria-live="polite"></p>
+    </section>
+
     <!-- Dev-only probe (Phase 1, step 1); kept as a connection debugging aid. -->
     <section class="section">
       <h2 class="section-title">Connection check</h2>
