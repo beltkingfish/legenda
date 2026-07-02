@@ -8,6 +8,7 @@ import {
   inspectCapsuleValues,
   probeMogrt,
   probeSelection,
+  roundTripLineText,
   writeTestOnSelection,
 } from "./mogrtProbe";
 import {
@@ -35,6 +36,7 @@ const linePreview = el<HTMLElement>("line-preview");
 const mogrtProbeButton = el<HTMLButtonElement>("mogrt-probe-button");
 const selectionProbeButton = el<HTMLButtonElement>("selection-probe-button");
 const inspectValuesButton = el<HTMLButtonElement>("inspect-values-button");
+const roundtripButton = el<HTMLButtonElement>("roundtrip-button");
 const writeTestButton = el<HTMLButtonElement>("write-test-button");
 const mogrtProbeOutput = el<HTMLElement>("mogrt-probe-output");
 const probeButton = el<HTMLButtonElement>("probe-button");
@@ -255,6 +257,24 @@ async function onInspectValuesClick(): Promise<void> {
 
 inspectValuesButton.addEventListener("click", () => {
   void onInspectValuesClick();
+});
+
+async function onRoundtripClick(): Promise<void> {
+  roundtripButton.disabled = true;
+  mogrtProbeOutput.className = "probe-output";
+  mogrtProbeOutput.textContent = "Round-tripping Line Text…";
+  try {
+    mogrtProbeOutput.textContent = await roundTripLineText();
+  } catch (err) {
+    mogrtProbeOutput.className = "probe-output is-error";
+    mogrtProbeOutput.textContent = `Round-trip failed: ${errorText(err)}`;
+  } finally {
+    roundtripButton.disabled = false;
+  }
+}
+
+roundtripButton.addEventListener("click", () => {
+  void onRoundtripClick();
 });
 
 async function onWriteTestClick(): Promise<void> {

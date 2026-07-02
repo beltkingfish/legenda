@@ -201,17 +201,24 @@ Last updated: 2026-07-02.
     returns a `{ value: X }` wrapper (matches `Keyframe.value` shape in defs).
   - **Color** — set did not throw; readback threw (readback since hardened to report
     why). Inconclusive; range still unconfirmed.
-  - **`Line Text` (string) FAILED — "Illegal Parameter type".** `createKeyframe(string)`
-    rejects a plain string for the source-text capsule param (the defs note
-    createKeyframe throws when the value type ≠ the param's type). **This is the
-    critical open problem: the caption text itself is the one param we can't yet
-    set.** Source-text params are not plain-string type; likely need a rich-text /
-    document representation.
-- **Next diagnostic shipped (awaiting live run)**: panel "Read all param values"
-  (`inspectCapsuleValues`, read-only) dumps each capsule param's CURRENT value +
-  raw outer JSON shape. `Line Text`'s native shape tells us what `createKeyframe`
-  wants; the color params' numbers reveal the 0–1 vs 0–255 range. Maintainer: select
-  the authored (unmodified) MOGRT, click it, paste the report.
+  - **`Line Text` (bare string): rejected — "Illegal Parameter type".** A source-text
+    capsule param is not plain-string type (defs: createKeyframe throws when value
+    type ≠ param type). **Scoped, cornered unknown — NOT a threat to the render
+    design (§3):** the capsule is provably writable (number landed), and setting text
+    is one experiment from resolved. Fix is almost certainly read-native-structure →
+    swap the text field → write back.
+  - Confirmed via grep: no text-specific value type or setter in the defs (only
+    transcript `TextSegments`) — source text goes through the generic
+    createKeyframe/createSetValueAction path with the correct value structure.
+- **Two diagnostics shipped (awaiting one live run, run both in the same session):**
+  - "Read all param values" (`inspectCapsuleValues`, read-only): each capsule param's
+    CURRENT value + raw outer JSON. `Line Text`'s native shape shows what
+    createKeyframe wants; color params' numbers reveal 0–1 vs 0–255.
+  - "Round-trip Line Text" (`roundTripLineText`): reads Line Text's native value and
+    writes it back UNCHANGED. Success ⇒ mechanism is read-modify-write (then the raw
+    JSON shows the text field to swap); failure with a plain-string inner ⇒ read/write
+    asymmetric, escalate. Decisive.
+  - Maintainer: select the authored (unmodified) MOGRT, run both, paste both reports.
 
 ## Discovered API limitations (append as found)
 - Caption-track text read/write: not available (as of research date).

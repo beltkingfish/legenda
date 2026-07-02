@@ -230,6 +230,85 @@ export async function inspectCapsuleValues(): Promise<string> {
 }
 
 /**
+ * Decisive text-write diagnostic: read `Line Text`'s CURRENT native value and
+ * write that exact value straight back, unchanged. Discriminates:
+ *  - round-trip succeeds → mechanism is read-native / swap-text / write-back
+ *    (the inspector's raw JSON shows where the string lives). A bare JS string
+ *    was simply the wrong type for a source-text param.
+ *  - round-trip fails "Illegal Parameter type" with a plain-string inner value →
+ *    read/write are asymmetric; this API path won't take text writes → escalate.
+ *  - read throws → text not readable here → escalate.
+ */
+export async function roundTripLineText(): Promise<string> {
+  const { project, sequence } = await getActiveContext();
+  if (!project || !sequence) {
+    throw new Error("Open a project with an active sequence first.");
+  }
+  const selection = await sequence.getSelection();
+  const items = (await selection.getTrackItems()) as unknown as InsertedItemLike[];
+  if (items.length === 0) {
+    throw new Error("Select the inserted MOGRT clip in the timeline first.");
+  }
+  const txn = project as unknown as ProjectTxn;
+  const params = await findCapsule(txn, items[0]);
+  const match = params?.find((p) => p.name === "Line Text");
+  if (!match) {
+    throw new Error('No "Line Text" param found on the selected clip.');
+  }
+
+  const out: string[] = [];
+  let native: unknown;
+  try {
+    native = await match.param.getValueAtTime(ppro.TickTime.TIME_ZERO);
+  } catch (err) {
+    return `read threw — text is not readable here: ${message(err)}`;
+  }
+  // getValueAtTime returns a { value: X } wrapper; createKeyframe wants X.
+  const inner =
+    native && typeof native === "object" && "value" in native
+      ? (native as { value: unknown }).value
+      : native;
+  let innerJson: string;
+  try {
+    innerJson = JSON.stringify(inner);
+  } catch {
+    innerJson = String(inner);
+  }
+  out.push(`Line Text native value type: ${typeof inner}`);
+  out.push(`Line Text native value: ${innerJson}`);
+  out.push("");
+
+  try {
+    txn.lockedAccess(() => {
+      if (match.param.isTimeVarying()) {
+        txn.executeTransaction(
+          (ca) => ca.addAction(match.param.createSetTimeVaryingAction(false)),
+          "Legenda: Line Text static"
+        );
+      }
+      const keyframe = match.param.createKeyframe(inner as ParamValue);
+      txn.executeTransaction(
+        (ca) => ca.addAction(match.param.createSetValueAction(keyframe, true)),
+        "Legenda: round-trip Line Text"
+      );
+    });
+    out.push("round-trip write of the unchanged native value: SUCCEEDED ✓");
+    out.push("→ mechanism is read-native, swap the text field, write back.");
+  } catch (err) {
+    out.push(`round-trip write FAILED — ${message(err)}`);
+    out.push(
+      typeof inner === "string"
+        ? "→ inner is a plain string yet the write is rejected: read/write asymmetric — escalate."
+        : "→ createKeyframe rejects even the native structure — escalate."
+    );
+  }
+
+  const report = out.join("\n");
+  console.log(report);
+  return report;
+}
+
+/**
  * Write-path prototype (step 6, open question #1): set one exposed param of
  * each value type — string, number, color — on the selected MOGRT, then read
  * each back. Proves the renderer can drive the template before step 7.
