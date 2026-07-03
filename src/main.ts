@@ -17,6 +17,7 @@ import {
   type TranscribedClip,
 } from "./premiere";
 import ppro from "./ppro";
+import { clearCaptions, generateCaptions } from "./renderer";
 import { parseSrt } from "./srt";
 import { parseTranscriptJson } from "./transcript";
 import { wrapWords, type CaptionLine } from "./wrap";
@@ -32,6 +33,9 @@ const importSrtButton = el<HTMLButtonElement>("import-srt-button");
 const rescanButton = el<HTMLButtonElement>("rescan-button");
 const lineLengthInput = el<HTMLInputElement>("line-length-input");
 const linePreview = el<HTMLElement>("line-preview");
+const generateButton = el<HTMLButtonElement>("generate-button");
+const clearButton = el<HTMLButtonElement>("clear-button");
+const generateStatus = el<HTMLElement>("generate-status");
 const mogrtProbeButton = el<HTMLButtonElement>("mogrt-probe-button");
 const selectionProbeButton = el<HTMLButtonElement>("selection-probe-button");
 const inspectValuesButton = el<HTMLButtonElement>("inspect-values-button");
@@ -105,6 +109,7 @@ function renderLines(): void {
     return;
   }
   lines = wrapWords(imported.words, { targetLineChars: currentTargetLineChars() });
+  generateButton.disabled = lines.length === 0;
 
   const { words, meta } = imported;
   const speakers = meta.speakerNames.length;
@@ -191,6 +196,65 @@ importSrtButton.addEventListener("click", () => {
 // Lines are cheap derived data — re-wrap live as the setting changes.
 lineLengthInput.addEventListener("input", () => {
   renderLines();
+});
+
+// ---------------------------------------------------------------------------
+// Generate section (UI_COMPONENTS.md §6)
+
+async function onGenerateClick(): Promise<void> {
+  generateButton.disabled = true;
+  clearButton.disabled = true;
+  generateStatus.className = "hint";
+  generateStatus.textContent = "Generating…";
+  try {
+    const result = await generateCaptions(lines, (done, total) => {
+      generateStatus.textContent = `Inserting caption ${done}/${total}…`;
+    });
+    generateStatus.className = "source-result";
+    generateStatus.textContent =
+      `Generated ${result.inserted} caption(s) on video track ${result.trackIndex + 1}` +
+      (result.cleared > 0 ? ` (cleared ${result.cleared} previous)` : "") +
+      ` · scaled to ${result.scalePct.toFixed(1)}%`;
+  } catch (err) {
+    generateStatus.className = "hint is-error";
+    generateStatus.textContent = `Generate failed: ${errorText(err)}`;
+  } finally {
+    generateButton.disabled = lines.length === 0;
+    clearButton.disabled = false;
+  }
+}
+
+// Destructive: clears every clip on the plugin track — confirm once
+// (UI_COMPONENTS "Interaction principles") via a two-step button.
+let clearArmed = false;
+
+async function onClearClick(): Promise<void> {
+  if (!clearArmed) {
+    clearArmed = true;
+    clearButton.textContent = "Really clear the caption track?";
+    return;
+  }
+  clearArmed = false;
+  clearButton.textContent = "Clear captions";
+  clearButton.disabled = true;
+  try {
+    const removed = await clearCaptions();
+    generateStatus.className = "hint";
+    generateStatus.textContent =
+      removed > 0 ? `Removed ${removed} caption(s).` : "Nothing to clear.";
+  } catch (err) {
+    generateStatus.className = "hint is-error";
+    generateStatus.textContent = `Clear failed: ${errorText(err)}`;
+  } finally {
+    clearButton.disabled = false;
+  }
+}
+
+generateButton.addEventListener("click", () => {
+  void onGenerateClick();
+});
+clearButton.addEventListener("click", () => {
+  void onClearClick();
 });
 
 // Scan once on panel load; Premiere may not have a project open yet, which

@@ -2,8 +2,7 @@
 
 Update this at the end of any session with meaningful changes (see CLAUDE.md → Update ritual).
 
-Current phase: **Phase 1 — step 6 in progress: fade template authored; param surface
-confirmed reachable via probe. Next: prototype setting a param, then step 7 renderer.**
+Current phase: **Phase 1 — steps 1–7 done and verified live. Next: step 8 (style panel).**
 Last updated: 2026-07-02.
 
 ## Done
@@ -116,30 +115,46 @@ Last updated: 2026-07-02.
   1–2 with *any* .mogrt; question 3 (setting params post-insert) needs our template's
   `Line Text` param.
 
-## In progress
-- **Maintainer action**: author `mogrt/legenda-fade-v1.mogrt` per docs/MOGRT_SPEC.md
-  (Tier 1 params minimum, UHD comp), then run the panel's MOGRT probe on it and paste
-  the dump here. Any installed/stock .mogrt can exercise the probe sooner to answer
-  the auto-create-track and param-surface questions. Also check downscale sharpness:
-  insert the UHD template into a UHD and a 1080 sequence and confirm crisp text.
+- 2026-07-02 — Step 7 built: the renderer (`src/renderer.ts`). Per line, in
+  chronological order: patch a template copy (`src/mogrtPatch.ts`, fflate; TS port of
+  scripts/patch-mogrt-text.py, 8 unit tests) → write to the UXP temp folder →
+  `insertMogrtFromPath` at the line's start on the plugin track → trim immediately
+  (`createSetEndAction`) → scale to the sequence frame. Regeneration clears the
+  plugin track first. Shared param helpers extracted to `src/params.ts` (probe +
+  renderer both use them). Panel gained the Generate section (UI_COMPONENTS §6):
+  Generate with per-line progress, Clear with a two-step confirm.
+- (Step-6 open questions all resolved — see the step-6 findings sections above and
+  MOGRT_SPEC "Runtime facts" / "Value read/write recipes".)
 
-## Open questions for the MOGRT prototype (step 6 — verify live)
-- No explicit "add track" API found. `createInsertProjectItemAction` docs: an
-  out-of-range track index creates a new track. Whether `insertMogrtFromPath` behaves
-  the same is unverified — decide how the plugin-owned track gets created.
-- How a MOGRT's exposed params (esp. the text field) surface in the component chain
-  (component matchName, param displayName, value type for text) — needs a real MOGRT.
-- Whether params on items returned by `insertMogrtFromPath` are settable immediately
-  after insert within the same lockedAccess scope.
+- 2026-07-02 — **Step 7 verified live (first generate)**: 85 captions laid on video
+  track 3 at 50.0% scale from the interview transcript; monitor shows the correct
+  line at the correct time (spot-checked); per-line trims correct, no overlaps;
+  user video/audio untouched. Confirms: per-line patch+insert loop works at real
+  scale; `createSetEndAction` is sequence-time based.
+
+- 2026-07-02 — Performance confirmed: the 85-line generate (85 patched temp files +
+  inserts + trims + scales) completes near-instantly. No optimization needed.
+- 2026-07-02 — **Clear bug found & fixed**: using the selection outside
+  `TrackItemSelection.createEmptySelection`'s callback → "The script object is no
+  longer valid" — the selection object's lifetime is scoped to the callback. All
+  selection work (addItem + remove action + transaction) now runs inside the
+  callback under one lock. (Now a discovered-limitations entry.)
+
+- 2026-07-02 — **Step 7 fully verified**: Clear removed 125 items (the 85 captions
+  plus accumulated probe-test debris on the track — confirming clear sweeps the
+  whole plugin track). Regeneration shares this code path with the verified
+  generate. The callback-scoped-selection fix works.
+
+## In progress
+- (none)
 
 ## Next (Phase 1 build order)
-5. Line wrapper (screen-real-estate setting → derived lines).
-6. Author/obtain Phase 1 MOGRT template(s) for teleprompter + fade with exposed params;
-   document the exposed param names here.
-7. Renderer: lay MOGRT instances per line at timecodes; set exposed params; regenerate on change.
-8. Style panel (Clean/Bold/Minimal) + global "apply to all".
+8. Style panel (Clean/Bold/Minimal) + global "apply to all" (style params via the
+   verified ComponentParam write path after the capsule populates).
 9. Timing panel with non-blocking WCAG warnings.
 10. Line-level color/italic override.
+- Then: teleprompter template (MOGRT_SPEC strategies), custom track auto-creation,
+  clip-offset time base.
 
 ## Decisions log
 - 2026-07-02: Target UXP (not CEP/ExtendScript). Render via MOGRT (not scripted keyframes).
@@ -167,6 +182,13 @@ Last updated: 2026-07-02.
   (verified in 26.3.0 defs, ~line 3183) + clip Motion → Scale (clip-intrinsic
   ComponentParam, not a MOGRT-internal param). StyleDef sizes stay 1080-referenced;
   size-like params are multiplied by designHeight/1080 when written to the template.
+- 2026-07-02: Plugin-owned track v1 = the topmost video track, which must be EMPTY on
+  first generate (clear message otherwise). Auto-manufacturing a track via
+  `createInsertProjectItemAction`'s out-of-range auto-create is deferred: an AV donor
+  clip would also create/shift AUDIO tracks — not worth the risk in v1.
+- 2026-07-02: Caption/word times are assumed relative to sequence start (true when
+  the transcribed clip sits at 0). Clip-offset handling is a known Phase-1 limitation
+  to revisit with the timing panel (step 9).
 - 2026-07-02: Wrapper policies — speaker changes and silences > 1.5s always break
   (captioning convention / no pause inside a line); sentence-boundary breaks kick in at
   ≥ 60% of the char budget; a line never exceeds 7s on screen by construction (distinct
@@ -323,6 +345,14 @@ Last updated: 2026-07-02.
   word tokens with NO `text` field (observed segments[0].words[44] on an interview
   transcript, 2026-07-02). Parser skips such tokens and reports a count
   (`meta.skippedTokens`) instead of failing the import.
+- Premiere's UXP runtime has NO `TextEncoder`/`TextDecoder` globals (confirmed live:
+  "TextDecoder is not defined"). Use fflate's `strToU8`/`strFromU8` for UTF-8.
+- Callback-style host APIs (`TrackItemSelection.createEmptySelection`) scope the
+  provided object's validity to the callback — using it afterwards throws "The
+  script object is no longer valid". Do all work inside the callback.
+  Nuance for the defs-gap list above: cc-ext-uxp-types omissions are sometimes
+  accurate about the runtime (this case) and sometimes not (`require`, `console`,
+  `classList`) — verify live before declaring a global in globals.d.ts.
 - UXP CSS (observed in Premiere 26.3, live): flexbox `gap` is ignored — use margins
   (fix confirmed live). Header/footer content rendered centered; `align-items: stretch`
   did NOT fix it (disproved live) — current fix sets `text-align: left`,

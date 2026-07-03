@@ -11,3 +11,7 @@ declare const console: {
   warn(...args: unknown[]): void;
   error(...args: unknown[]): void;
 };
+
+// NOTE: Premiere's UXP runtime has NO TextEncoder/TextDecoder globals
+// (confirmed live 2026-07-02) — the type defs' omission is accurate there.
+// Use fflate's strToU8/strFromU8 for UTF-8 instead.

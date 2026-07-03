@@ -56,22 +56,32 @@ Last updated: 2026-07-02. Read the **Hard constraints** section before designing
    set on an inserted instance through the current API — see PROJECT_STATUS step-6
    record for the per-line template-patching contingency (maintainer decision).
 
-## 3. Rendering model (MOGRT-driven)
-- Ship one or more **pre-authored MOGRT templates** (built in Premiere's graphics tools or
-  After Effects) that contain the teleprompter and fade behaviors, with a small set of
-  **exposed editable parameters**: line text, text color, background on/off, background
-  color/opacity, and (where feasible) an italic/emphasis flag.
-  **The exact exposed-parameter contract lives in docs/MOGRT_SPEC.md** — the renderer
-  matches params by display name, so template and code must both follow it.
-- Pipeline: import → normalize to internal model (§4) → wrap into lines by screen-real-
-  estate setting → for each line, insert a MOGRT instance on a dedicated video track at the
-  line's start time, trim to its duration → set exposed params from the active style →
-  apply per-line overrides.
-- Insertion uses the documented MOGRT insert methods (verify exact names/signatures against
-  the current TS defs before use). Keep all instances on one plugin-owned track for easy
-  cleanup/regeneration.
-- **Regeneration over mutation**: when the user changes global style/timing, clear the
-  plugin's track and re-lay instances rather than trying to mutate each in place.
+## 3. Rendering model (MOGRT-driven, per-line template patching for text)
+- Ship one or more **pre-authored MOGRT templates** (After Effects, UHD comp) with the
+  exposed parameters defined in **docs/MOGRT_SPEC.md** (matched by display name at
+  runtime; template and code must both follow it).
+- **Caption text cannot be set via the API** (hard constraint #7). Adopted mechanism
+  (decision 2026-07-02, verified live): for each line, the plugin writes a **patched
+  copy of the template** to the UXP temporary folder — rewriting `definition.json`
+  inside the zip (the three text fields + a fresh `capsuleID`; see MOGRT_SPEC "Value
+  read/write recipes" and scripts/patch-mogrt-text.py) — and inserts that copy.
+  Style params (colors, opacities, size) are still set via ComponentParam after the
+  capsule populates. Zip handling uses fflate (bundled).
+- Pipeline: import → normalize to internal model (§4) → wrap into lines (§5) → ensure
+  the **plugin-owned track** → per line, IN CHRONOLOGICAL ORDER: patch a template copy
+  with the line's text → `insertMogrtFromPath` at the line's start on the plugin track
+  → immediately trim to the line's duration (before the next insert, so insert-shift
+  semantics never touch a previous instance) → set Motion Scale to
+  `frameHeight / templateHeight × 100` → (step 8+) set style params.
+- **Plugin-owned track**: `insertMogrtFromPath` cannot create tracks. Strategy: use the
+  topmost video track if it has no clips; otherwise manufacture a new top track with
+  `createInsertProjectItemAction` at an out-of-range index (documented auto-create)
+  using any sequence clip's project item, then remove the placeholder item — leaving
+  an empty new track. All caption instances live on that one track.
+- **Regeneration over mutation**: style/timing/wrap changes clear the plugin track
+  (TrackItemSelection.createEmptySelection + addItem + createRemoveItemsAction) and
+  re-lay. Clearing removes ALL clip items on the plugin-owned track — never place
+  user content there.
 
 ## 4. Internal data model (plugin-owned, source-agnostic)
 ```
