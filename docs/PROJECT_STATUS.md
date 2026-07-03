@@ -2,8 +2,8 @@
 
 Update this at the end of any session with meaningful changes (see CLAUDE.md → Update ritual).
 
-Current phase: **Phase 2 — step 1 (per-word italic emphasis) built; awaiting live
-verify. Phase 1 close items still open: teleprompter template + template v2 authoring.**
+Current phase: **Phase 2 — step 1 (per-word italic emphasis) done and verified live.
+Phase 1 close items still open: teleprompter template + template v2 authoring.**
 Last updated: 2026-07-03.
 
 ## Done
@@ -287,15 +287,20 @@ Last updated: 2026-07-03.
   toggle italic on just that word; "Clear overrides on this line" clears word
   emphasis too. 85 tests.
 
+- 2026-07-03 — **Phase 2 step 1 verified live: MULTI-RUN RENDERING CONFIRMED.**
+  Line 11 "of 26 projects across the" with words "26" + "projects" emphasized
+  renders exactly "of *26 projects* across the" — italic mid-line, rest upright.
+  Premiere honors `capPropTextRunCount` > 1 with parallel per-run arrays patched
+  into definition.json (all Phase-1 patches were single-run). The test also
+  exercised the run-merge path: two adjacent emphasized words shipped as ONE
+  italic run between two upright runs. Per-text-run styling is now a proven
+  capability of the patch channel.
+
 ## In progress
-- **Step 1 live gate**: does Premiere's renderer honor MULTI-run styling patched
-  into definition.json (`capPropTextRunCount` > 1)? All Phase-1 patches were
-  single-run. Test: select a line → click one word chip → Generate → only that
-  word should render italic. If the render collapses to run[0] or ignores the
-  split, the per-run route needs an AE-authored multi-run template test next.
+- (none)
 
 ## Next (Phase 2 build order)
-1. Per-word italic emphasis — built; live verify pending (see In progress).
+1. ~~Per-word italic emphasis~~ — done, verified live.
 2. Per-word color — **gated on a 5-minute AE experiment**: recolor one word of
    the Line Text in `mogrt_build.aep`, re-export the MOGRT, diff definition.json.
    If the exporter emits a per-run color field → wire it like italic. If not →
