@@ -9,7 +9,6 @@ import { readPluginFile, writeTempFile } from "./files";
 import { loadTemplate, patchTemplate, type MogrtTemplate } from "./mogrtPatch";
 import {
   scaleItemToSequence,
-  ticks,
   TEMPLATE_HEIGHT_PX,
   type ProjectTxn,
   type TrackItemLike,
@@ -17,7 +16,13 @@ import {
 import ppro from "./ppro";
 import { getActiveContext } from "./premiere";
 import { styleToTemplateValues, type StyleDef } from "./style";
-import { sanitizeLineTimings, type CaptionLine } from "./wrap";
+import {
+  planFrameTimings,
+  PREMIERE_TICKS_PER_SECOND,
+  sanitizeLineTimings,
+  type CaptionLine,
+  type FramePlanEntry,
+} from "./wrap";
 
 /** Presets are 1080-referenced; the template comp is UHD (MOGRT_SPEC). */
 const DESIGN_SCALE = TEMPLATE_HEIGHT_PX / 1080;
@@ -159,9 +164,15 @@ export async function generateCaptions(
   if (!project || !sequence) {
     throw new Error("Open a project with an active sequence first.");
   }
-  // Overlapping line times would make inserts SPLIT earlier instances
-  // (debris cascade — see sanitizeLineTimings).
-  const plan = sanitizeLineTimings(lines);
+  // Overlapping boundaries make inserts SPLIT earlier instances into sliver
+  // debris — and Premiere snaps item edges to the FRAME grid, so the plan
+  // must be frame-quantized, not just seconds-sanitized (see planFrameTimings).
+  let ticksPerFrame = Number.parseInt(await sequence.getTimebase(), 10);
+  if (!Number.isFinite(ticksPerFrame) || ticksPerFrame <= 0) {
+    console.warn("Legenda: unreadable sequence timebase; assuming 30 fps grid");
+    ticksPerFrame = PREMIERE_TICKS_PER_SECOND / 30;
+  }
+  const plan: FramePlanEntry[] = planFrameTimings(sanitizeLineTimings(lines), ticksPerFrame);
   const droppedLines = lines.length - plan.length;
 
   const txn = project as unknown as ProjectTxn;
@@ -189,8 +200,12 @@ export async function generateCaptions(
     let items: unknown[] = [];
     txn.lockedAccess(() => {
       items =
-        editor.insertMogrtFromPath(path, ticks(line.startSec) as never, trackIndex, 0) ??
-        [];
+        editor.insertMogrtFromPath(
+          path,
+          ppro.TickTime.createWithTicks(line.startTicks) as never,
+          trackIndex,
+          0
+        ) ?? [];
     });
     const item = items.find(
       (candidate) =>
@@ -207,7 +222,7 @@ export async function generateCaptions(
     // the next line's insert point (insert semantics split/shift at that time).
     txn.lockedAccess(() => {
       txn.executeTransaction((ca) => {
-        ca.addAction(item.createSetEndAction(ticks(line.endSec)));
+        ca.addAction(item.createSetEndAction(ppro.TickTime.createWithTicks(line.endTicks)));
       }, "Legenda: trim caption");
     });
 

@@ -60,6 +60,54 @@ export function sanitizeLineTimings(lines: CaptionLine[]): CaptionLine[] {
   return out;
 }
 
+/** Premiere's fixed tick rate (ticks per second). */
+export const PREMIERE_TICKS_PER_SECOND = 254016000000;
+
+export interface FramePlanEntry {
+  text: string;
+  /** Frame-aligned boundaries as tick strings for TickTime.createWithTicks. */
+  startTicks: string;
+  endTicks: string;
+}
+
+/**
+ * Quantize line boundaries to the sequence's frame grid (integer tick math).
+ * Seconds-level sanitation is not enough: Premiere snaps item edges to
+ * frames, so a sub-frame overlap re-emerges after insertion and splits the
+ * previous instance (live find 2026-07-03: half-frame sliver clips carrying
+ * real caption text). With every boundary ON the grid, and ends clamped to
+ * the next start in frame space, overlap is impossible on the grid Premiere
+ * snaps to. `ticksPerFrame` comes from Sequence.getTimebase().
+ */
+export function planFrameTimings(
+  lines: CaptionLine[],
+  ticksPerFrame: number
+): FramePlanEntry[] {
+  const toFrame = (seconds: number): number =>
+    Math.floor((seconds * PREMIERE_TICKS_PER_SECOND) / ticksPerFrame + 1e-9);
+
+  const out: FramePlanEntry[] = [];
+  let previousEndFrame = Number.NEGATIVE_INFINITY;
+  for (let i = 0; i < lines.length; i++) {
+    const startFrame = Math.max(toFrame(lines[i].startSec), previousEndFrame);
+    const next = lines[i + 1];
+    let endFrame = toFrame(lines[i].endSec);
+    if (next) {
+      endFrame = Math.min(endFrame, toFrame(next.startSec));
+    }
+    if (endFrame <= startFrame) {
+      continue; // shorter than a frame after quantization
+    }
+    previousEndFrame = endFrame;
+    out.push({
+      text: lines[i].text,
+      startTicks: String(startFrame * ticksPerFrame),
+      endTicks: String(endFrame * ticksPerFrame),
+    });
+  }
+  return out;
+}
+
 export function wrapWords(words: CaptionWord[], options: WrapOptions): CaptionLine[] {
   const targetChars = Math.max(1, Math.floor(options.targetLineChars));
   const maxLineSec = options.maxLineSec ?? DEFAULT_MAX_LINE_SEC;

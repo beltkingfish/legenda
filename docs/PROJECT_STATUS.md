@@ -179,10 +179,20 @@ Last updated: 2026-07-03.
   line's end to the next line's start and drops emptied lines before insertion;
   Generate reports skipped zero-length lines.
 
+- 2026-07-03 — **Slivers persisted after the seconds-level fix** (some carrying real
+  caption text — split tails keep their parent's properties). Deeper cause: Premiere
+  snaps item edges to the FRAME grid, so sub-frame overlaps re-emerge after insertion
+  no matter how clean the seconds are. Fix: `planFrameTimings` — all boundaries
+  quantized to the sequence's own grid (`Sequence.getTimebase()` ticks-per-frame ×
+  integer frame math via `TickTime.createWithTicks`), ends clamped to next starts in
+  frame space, sub-frame lines dropped. Overlap is now impossible on the grid
+  Premiere snaps to. (Caveat: possible the prior test ran a stale build — the frame
+  fix is correct regardless and supersedes it.)
+
 ## In progress
-- Manual re-check: Generate on a fresh/cleared track → NO sliver clips anywhere on
-  the caption track, sequence end matches the last caption. Crash from yesterday:
-  not yet reproduced — keep watching.
+- Manual re-check (CONFIRM the plugin was rebuilt AND reloaded in UDT first):
+  Clear → Generate → zoom the caption track end-to-end → no slivers; sequence end
+  == last caption end. Crash from yesterday: not yet reproduced — keep watching.
 
 ## Next (Phase 1 build order)
 8. Style panel (Clean/Bold/Minimal) + global "apply to all" (style params via the
