@@ -33,6 +33,76 @@
       <ol id="line-preview" class="line-preview"></ol>
     </section>
 
+    <!-- Caption Style (UI_COMPONENTS.md §2) -->
+    <section class="section">
+      <h2 class="section-title">Caption Style</h2>
+      <div class="button-row">
+        <button id="preset-clean" class="button preset-button">Clean</button>
+        <button id="preset-bold" class="button preset-button">Bold</button>
+        <button id="preset-minimal" class="button preset-button">Minimal</button>
+        <span id="custom-indicator" class="custom-indicator">Custom</span>
+      </div>
+      <div class="field-row">
+        <label class="field-label" for="font-family-input">Font family</label>
+        <input id="font-family-input" class="field-input field-wide" type="text" />
+      </div>
+      <div class="field-row">
+        <label class="field-label" for="font-weight-select">Weight</label>
+        <select id="font-weight-select" class="field-input field-wide">
+          <option>Regular</option>
+          <option>Medium</option>
+          <option>SemiBold</option>
+          <option>Bold</option>
+          <option>ExtraBold</option>
+          <option>Black</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <label class="field-label" for="font-size-input">Size (1080-referenced px)</label>
+        <input id="font-size-input" class="field-input" type="number" min="8" max="200" />
+      </div>
+      <div class="field-row">
+        <label class="field-label" for="text-color-input">Text color (#RRGGBB)</label>
+        <input id="text-color-input" class="field-input field-wide" type="text" />
+        <span id="text-color-swatch" class="swatch"></span>
+      </div>
+      <div class="field-row">
+        <label class="check-label">
+          <input id="bg-enabled-input" type="checkbox" /> Background
+        </label>
+      </div>
+      <div class="field-row">
+        <label class="field-label" for="bg-color-input">Background color (#RRGGBB)</label>
+        <input id="bg-color-input" class="field-input field-wide" type="text" />
+        <span id="bg-color-swatch" class="swatch"></span>
+      </div>
+      <div class="field-row">
+        <label class="field-label" for="bg-opacity-input">Background opacity (0–100)</label>
+        <input id="bg-opacity-input" class="field-input" type="number" min="0" max="100" />
+      </div>
+      <div class="field-row">
+        <label class="check-label">
+          <input id="shadow-enabled-input" type="checkbox" /> Drop shadow
+        </label>
+      </div>
+      <div class="field-row">
+        <label class="field-label" for="shadow-opacity-input">Shadow opacity (0–100)</label>
+        <input id="shadow-opacity-input" class="field-input" type="number" min="0" max="100" />
+      </div>
+      <p class="hint">
+        Line height, letter spacing, alignment, and outline arrive with template v2.
+      </p>
+      <div class="button-row">
+        <button id="save-style-button" class="button" disabled
+                title="Custom style save/load is Phase 2">
+          Save as custom style…
+        </button>
+        <button id="apply-style-button" class="button button-primary" disabled>
+          Apply to all
+        </button>
+      </div>
+    </section>
+
     <!-- Generate / regenerate (UI_COMPONENTS.md §6) -->
     <section class="section">
       <h2 class="section-title">Generate</h2>

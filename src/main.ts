@@ -19,6 +19,12 @@ import {
 import ppro from "./ppro";
 import { clearCaptions, generateCaptions } from "./renderer";
 import { parseSrt } from "./srt";
+import {
+  getPreset,
+  isValidHexColor,
+  type PresetId,
+  type StyleDef,
+} from "./style";
 import { parseTranscriptJson } from "./transcript";
 import { wrapWords, type CaptionLine } from "./wrap";
 
@@ -36,6 +42,19 @@ const linePreview = el<HTMLElement>("line-preview");
 const generateButton = el<HTMLButtonElement>("generate-button");
 const clearButton = el<HTMLButtonElement>("clear-button");
 const generateStatus = el<HTMLElement>("generate-status");
+const customIndicator = el<HTMLElement>("custom-indicator");
+const fontFamilyInput = el<HTMLInputElement>("font-family-input");
+const fontWeightSelect = el<HTMLSelectElement>("font-weight-select");
+const fontSizeInput = el<HTMLInputElement>("font-size-input");
+const textColorInput = el<HTMLInputElement>("text-color-input");
+const textColorSwatch = el<HTMLElement>("text-color-swatch");
+const bgEnabledInput = el<HTMLInputElement>("bg-enabled-input");
+const bgColorInput = el<HTMLInputElement>("bg-color-input");
+const bgColorSwatch = el<HTMLElement>("bg-color-swatch");
+const bgOpacityInput = el<HTMLInputElement>("bg-opacity-input");
+const shadowEnabledInput = el<HTMLInputElement>("shadow-enabled-input");
+const shadowOpacityInput = el<HTMLInputElement>("shadow-opacity-input");
+const applyStyleButton = el<HTMLButtonElement>("apply-style-button");
 const mogrtProbeButton = el<HTMLButtonElement>("mogrt-probe-button");
 const selectionProbeButton = el<HTMLButtonElement>("selection-probe-button");
 const inspectValuesButton = el<HTMLButtonElement>("inspect-values-button");
@@ -110,6 +129,7 @@ function renderLines(): void {
   }
   lines = wrapWords(imported.words, { targetLineChars: currentTargetLineChars() });
   generateButton.disabled = lines.length === 0;
+  applyStyleButton.disabled = lines.length === 0;
 
   const { words, meta } = imported;
   const speakers = meta.speakerNames.length;
@@ -199,15 +219,120 @@ lineLengthInput.addEventListener("input", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Caption Style section (UI_COMPONENTS.md §2). The working style is applied
+// at patch time; "Apply to all" = regenerate (ARCHITECTURE §6).
+
+let currentStyle: StyleDef = getPreset("clean");
+let currentPresetId: PresetId | "custom" = "clean";
+
+// Explicit ids rather than querySelectorAll — UXP NodeList iterability is
+// unverified, and these three are fixed.
+const presetButtons: { id: PresetId; button: HTMLButtonElement }[] = (
+  ["clean", "bold", "minimal"] as PresetId[]
+).map((id) => ({ id, button: el<HTMLButtonElement>(`preset-${id}`) }));
+
+function setSwatch(swatch: HTMLElement, hex: string): void {
+  try {
+    (swatch as unknown as { style: { backgroundColor: string } }).style.backgroundColor =
+      isValidHexColor(hex) ? (hex.startsWith("#") ? hex : `#${hex}`) : "transparent";
+  } catch {
+    // swatches are cosmetic; ignore styling failures
+  }
+}
+
+function renderStyleControls(): void {
+  fontFamilyInput.value = currentStyle.typography.fontFamily;
+  fontWeightSelect.value = currentStyle.typography.fontWeight;
+  fontSizeInput.value = String(currentStyle.typography.fontSize);
+  textColorInput.value = currentStyle.textColor;
+  bgEnabledInput.checked = currentStyle.background.enabled;
+  bgColorInput.value = currentStyle.background.color;
+  bgOpacityInput.value = String(Math.round(currentStyle.background.opacity * 100));
+  shadowEnabledInput.checked = currentStyle.dropShadow.enabled;
+  shadowOpacityInput.value = String(Math.round(currentStyle.dropShadow.opacity * 100));
+  setSwatch(textColorSwatch, currentStyle.textColor);
+  setSwatch(bgColorSwatch, currentStyle.background.color);
+  for (const { id, button } of presetButtons) {
+    button.className =
+      id === currentPresetId ? "button preset-button is-active" : "button preset-button";
+  }
+  customIndicator.className =
+    currentPresetId === "custom" ? "custom-indicator is-visible" : "custom-indicator";
+}
+
+function parseOpacityInput(input: HTMLInputElement, fallback: number): number {
+  const parsed = Number.parseInt(input.value, 10);
+  return Number.isFinite(parsed) ? Math.min(100, Math.max(0, parsed)) / 100 : fallback;
+}
+
+function readStyleControls(): void {
+  const t = currentStyle.typography;
+  t.fontFamily = fontFamilyInput.value.trim() || t.fontFamily;
+  t.fontWeight = fontWeightSelect.value || t.fontWeight;
+  const size = Number.parseInt(fontSizeInput.value, 10);
+  if (Number.isFinite(size) && size > 0) {
+    t.fontSize = size;
+  }
+  if (isValidHexColor(textColorInput.value)) {
+    currentStyle.textColor = textColorInput.value.startsWith("#")
+      ? textColorInput.value
+      : `#${textColorInput.value}`;
+  }
+  currentStyle.background.enabled = bgEnabledInput.checked;
+  if (isValidHexColor(bgColorInput.value)) {
+    currentStyle.background.color = bgColorInput.value.startsWith("#")
+      ? bgColorInput.value
+      : `#${bgColorInput.value}`;
+  }
+  currentStyle.background.opacity = parseOpacityInput(
+    bgOpacityInput,
+    currentStyle.background.opacity
+  );
+  currentStyle.dropShadow.enabled = shadowEnabledInput.checked;
+  currentStyle.dropShadow.opacity = parseOpacityInput(
+    shadowOpacityInput,
+    currentStyle.dropShadow.opacity
+  );
+  currentPresetId = "custom";
+  setSwatch(textColorSwatch, currentStyle.textColor);
+  setSwatch(bgColorSwatch, currentStyle.background.color);
+  for (const { button } of presetButtons) {
+    button.className = "button preset-button";
+  }
+  customIndicator.className = "custom-indicator is-visible";
+}
+
+for (const { id, button } of presetButtons) {
+  button.addEventListener("click", () => {
+    currentStyle = getPreset(id);
+    currentPresetId = id;
+    renderStyleControls();
+  });
+}
+for (const input of [fontFamilyInput, fontSizeInput, textColorInput, bgColorInput, bgOpacityInput, shadowOpacityInput]) {
+  input.addEventListener("input", () => {
+    readStyleControls();
+  });
+}
+for (const input of [fontWeightSelect, bgEnabledInput, shadowEnabledInput]) {
+  input.addEventListener("change", () => {
+    readStyleControls();
+  });
+}
+
+renderStyleControls();
+
+// ---------------------------------------------------------------------------
 // Generate section (UI_COMPONENTS.md §6)
 
 async function onGenerateClick(): Promise<void> {
   generateButton.disabled = true;
   clearButton.disabled = true;
+  applyStyleButton.disabled = true;
   generateStatus.className = "hint";
   generateStatus.textContent = "Generating…";
   try {
-    const result = await generateCaptions(lines, (done, total) => {
+    const result = await generateCaptions(lines, currentStyle, (done, total) => {
       generateStatus.textContent = `Inserting caption ${done}/${total}…`;
     });
     generateStatus.className = "source-result";
@@ -220,6 +345,7 @@ async function onGenerateClick(): Promise<void> {
     generateStatus.textContent = `Generate failed: ${errorText(err)}`;
   } finally {
     generateButton.disabled = lines.length === 0;
+    applyStyleButton.disabled = lines.length === 0;
     clearButton.disabled = false;
   }
 }
@@ -255,6 +381,10 @@ generateButton.addEventListener("click", () => {
 });
 clearButton.addEventListener("click", () => {
   void onClearClick();
+});
+// "Apply to all" = regenerate with the current style (ARCHITECTURE §6).
+applyStyleButton.addEventListener("click", () => {
+  void onGenerateClick();
 });
 
 // Scan once on panel load; Premiere may not have a project open yet, which
