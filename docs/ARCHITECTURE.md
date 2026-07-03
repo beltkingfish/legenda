@@ -46,6 +46,15 @@ Last updated: 2026-07-02. Read the **Hard constraints** section before designing
    retries with a short delay) before reading/writing exposed params. Params match by
    exposed `displayName`; **checkbox params report an empty displayName** — encode
    booleans as a 0/max numeric param instead (see docs/MOGRT_SPEC.md).
+7. **Exposed TEXT params are NOT reachable via ComponentParam** (confirmed 26.3,
+   step-6 probe run #5): a source-text param reports `areKeyframesSupported: false`,
+   `getValueAtTime` throws, and `getStartValue`/`getKeyframePtr` return null — the
+   entire keyframe-based value surface is closed for text. Numbers/booleans work via
+   `getValueAtTime` + `createKeyframe`/`createSetValueAction`; **colors** read via
+   `getStartValue()` which returns the `Color` object itself (not a keyframe
+   wrapper) and write via `createKeyframe(Color)`. Caption text therefore cannot be
+   set on an inserted instance through the current API — see PROJECT_STATUS step-6
+   record for the per-line template-patching contingency (maintainer decision).
 
 ## 3. Rendering model (MOGRT-driven)
 - Ship one or more **pre-authored MOGRT templates** (built in Premiere's graphics tools or

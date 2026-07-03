@@ -62,6 +62,14 @@ function tryGet(obj: unknown, key: string): unknown {
 /** Deep-describe a keyframe host object: keys, value shape, likely fields. */
 function describeKeyframeDeep(keyframe: KeyframeLike, out: string[]): void {
   out.push(`      keyframe keys: [${allKeys(keyframe).join(", ")}]`);
+  // Run #5: for color params getStartValue returns the Color object ITSELF
+  // (keys red/green/blue/alpha/equals) — probe value fields directly on it.
+  for (const path of ["red", "green", "blue", "alpha", "text"]) {
+    const direct = tryGet(keyframe, path);
+    if (direct !== undefined) {
+      out.push(`      .${path}: ${formatScalar(direct)}`);
+    }
+  }
   const value = tryGet(keyframe, "value");
   out.push(`      .value: ${typeof value}, keys [${allKeys(value).join(", ")}]`);
   for (const path of ["value", "red", "green", "blue", "alpha", "text"]) {

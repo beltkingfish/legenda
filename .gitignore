@@ -13,6 +13,9 @@ out/
 *.ccx
 *.uxpaddon
 
+# Throwaway patched-template test artifacts (see PROJECT_STATUS step 6)
+mogrt/*-PATCHTEST.mogrt
+
 # Logs
 logs/
 *.log

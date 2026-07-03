@@ -234,12 +234,24 @@ Last updated: 2026-07-02.
   behind non-enumerable getters), `.value` shape, and probes of likely fields
   (`.value.value`, color channels, `.text`). Output pinpoints where color values
   live and whether text is API-reachable at all.
-- **Contingency sketch (only if text proves API-unreachable):** per-line .mogrt
-  patching — a .mogrt is a zip whose definition JSON carries capsule param
-  DEFAULTS incl. source text; plugin writes a patched copy per line and inserts
-  that, style params still set via API. Costs a small zip dep (e.g. fflate) +
-  temp-file churn; regeneration-over-mutation model absorbs it. NOT designing this
-  until the forensic run says text is closed.
+- **Run #5 (2026-07-02) — VERDICT.** Text: `areKeyframesSupported: false` on
+  `Line Text` (true on colors), all doors null ⇒ **source text is not reachable via
+  ComponentParam in 26.3** (now ARCHITECTURE hard constraint #7). Colors:
+  `getStartValue()` returns the `Color` object ITSELF (keys red/green/blue/alpha/
+  equals) — read shape solved; channel numbers (range 0–1 vs 255) print on the next
+  inspector run after the probe fix.
+- **Contingency VERIFIED statically (same day):** the .mogrt is a plain zip
+  (deflate-compressed entries — runtime needs a small zip lib, e.g. fflate);
+  `definition.json` → `clientControls[]` → `Line Text` control → `value.strDB[].str`
+  holds the text default in plain JSON. Patched a copy via script
+  (`mogrt/legenda-fade-v1-PATCHTEST.mogrt`, gitignored) swapping the default to
+  "PATCHED BY LEGENDA OK". **Live test pending**: insert the PATCHTEST file via the
+  probe's file picker — if the Program monitor shows the patched text, per-line text
+  via template patching is proven end to end.
+- **Maintainer decision needed (architecture change):** adopt per-line .mogrt
+  patching for caption text (API still drives colors/numbers) vs waiting on Adobe.
+  If adopted: ARCHITECTURE §3 + SPECIFICATION get updated first, per CLAUDE.md.
+  Escalation to Adobe (forum + feature request) recommended in parallel either way.
 
 ## Discovered API limitations (append as found)
 - Caption-track text read/write: not available (as of research date).
