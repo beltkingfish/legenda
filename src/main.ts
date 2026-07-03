@@ -2,8 +2,14 @@
 // package.json "bundle". Sections follow UI_COMPONENTS.md.
 
 import presets from "../presets/style-presets.json";
-import { pickSrtFile } from "./files";
+import { pickMogrtFile, pickSrtFile } from "./files";
 import type { ImportedCaptions } from "./model";
+import {
+  inspectCapsuleValues,
+  probeMogrt,
+  probeSelection,
+  writeTestOnSelection,
+} from "./mogrtProbe";
 import {
   exportTranscriptJson,
   findTranscribedClips,
@@ -26,6 +32,11 @@ const importSrtButton = el<HTMLButtonElement>("import-srt-button");
 const rescanButton = el<HTMLButtonElement>("rescan-button");
 const lineLengthInput = el<HTMLInputElement>("line-length-input");
 const linePreview = el<HTMLElement>("line-preview");
+const mogrtProbeButton = el<HTMLButtonElement>("mogrt-probe-button");
+const selectionProbeButton = el<HTMLButtonElement>("selection-probe-button");
+const inspectValuesButton = el<HTMLButtonElement>("inspect-values-button");
+const writeTestButton = el<HTMLButtonElement>("write-test-button");
+const mogrtProbeOutput = el<HTMLElement>("mogrt-probe-output");
 const probeButton = el<HTMLButtonElement>("probe-button");
 const probeOutput = el<HTMLElement>("probe-output");
 
@@ -104,7 +115,8 @@ function renderLines(): void {
       ? ` · ${speakers} speaker${speakers === 1 ? "" : "s"}`
       : "") +
     (meta.language ? ` · ${meta.language}` : "") +
-    (meta.kind === "srt" && meta.sourceName ? ` · ${meta.sourceName}` : "");
+    (meta.kind === "srt" && meta.sourceName ? ` · ${meta.sourceName}` : "") +
+    (meta.skippedTokens ? ` · ${meta.skippedTokens} malformed token(s) skipped` : "");
 
   // Read-only preview; the editable per-caption list is a later step.
   linePreview.textContent = "";
@@ -184,6 +196,85 @@ lineLengthInput.addEventListener("input", () => {
 // Scan once on panel load; Premiere may not have a project open yet, which
 // the scan reports gracefully.
 void scanForTranscript();
+
+// ---------------------------------------------------------------------------
+// Dev probe (step 6): MOGRT insert + param discovery (docs/MOGRT_SPEC.md).
+
+async function onMogrtProbeClick(): Promise<void> {
+  try {
+    const picked = await pickMogrtFile();
+    if (!picked) {
+      return; // picker cancelled
+    }
+    mogrtProbeButton.disabled = true;
+    mogrtProbeOutput.className = "probe-output";
+    mogrtProbeOutput.textContent = `Inserting ${picked.name}…`;
+    mogrtProbeOutput.textContent = await probeMogrt(picked.path);
+  } catch (err) {
+    mogrtProbeOutput.className = "probe-output is-error";
+    mogrtProbeOutput.textContent = `MOGRT probe failed: ${errorText(err)}`;
+  } finally {
+    mogrtProbeButton.disabled = false;
+  }
+}
+
+mogrtProbeButton.addEventListener("click", () => {
+  void onMogrtProbeClick();
+});
+
+async function onSelectionProbeClick(): Promise<void> {
+  selectionProbeButton.disabled = true;
+  mogrtProbeOutput.className = "probe-output";
+  mogrtProbeOutput.textContent = "Dumping selected clip…";
+  try {
+    mogrtProbeOutput.textContent = await probeSelection();
+  } catch (err) {
+    mogrtProbeOutput.className = "probe-output is-error";
+    mogrtProbeOutput.textContent = `Selection probe failed: ${errorText(err)}`;
+  } finally {
+    selectionProbeButton.disabled = false;
+  }
+}
+
+selectionProbeButton.addEventListener("click", () => {
+  void onSelectionProbeClick();
+});
+
+async function onInspectValuesClick(): Promise<void> {
+  inspectValuesButton.disabled = true;
+  mogrtProbeOutput.className = "probe-output";
+  mogrtProbeOutput.textContent = "Reading param values…";
+  try {
+    mogrtProbeOutput.textContent = await inspectCapsuleValues();
+  } catch (err) {
+    mogrtProbeOutput.className = "probe-output is-error";
+    mogrtProbeOutput.textContent = `Read values failed: ${errorText(err)}`;
+  } finally {
+    inspectValuesButton.disabled = false;
+  }
+}
+
+inspectValuesButton.addEventListener("click", () => {
+  void onInspectValuesClick();
+});
+
+async function onWriteTestClick(): Promise<void> {
+  writeTestButton.disabled = true;
+  mogrtProbeOutput.className = "probe-output";
+  mogrtProbeOutput.textContent = "Writing test values…";
+  try {
+    mogrtProbeOutput.textContent = await writeTestOnSelection();
+  } catch (err) {
+    mogrtProbeOutput.className = "probe-output is-error";
+    mogrtProbeOutput.textContent = `Write test failed: ${errorText(err)}`;
+  } finally {
+    writeTestButton.disabled = false;
+  }
+}
+
+writeTestButton.addEventListener("click", () => {
+  void onWriteTestClick();
+});
 
 // ---------------------------------------------------------------------------
 // Dev probe (step 1): confirms panel ↔ Premiere API wiring.

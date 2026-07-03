@@ -45,7 +45,11 @@ function isFiniteNonNegative(n: unknown): n is number {
   return typeof n === "number" && Number.isFinite(n) && n >= 0;
 }
 
-/** Structural check of the bits we rely on; tolerant of extra fields. */
+/** Structural check of the bits we rely on; tolerant of extra fields.
+    NOTE: real Premiere exports include tokens that violate the published
+    spec (observed 2026-07-02: a word with no 'text' field at all). Malformed
+    tokens are the caller's problem to SKIP, not a reason to fail the import —
+    only structural breakage (no segments / no words arrays) fails here. */
 function validate(root: unknown): SpecTranscript {
   if (typeof root !== "object" || root === null) {
     fail("root", "not an object");
@@ -58,19 +62,21 @@ function validate(root: unknown): SpecTranscript {
     if (typeof segment !== "object" || segment === null) {
       fail(`segments[${s}]`, "not an object");
     }
-    if (!Array.isArray(segment.words) || segment.words.length === 0) {
-      fail(`segments[${s}]`, "missing non-empty 'words' array");
+    if (!Array.isArray(segment.words)) {
+      fail(`segments[${s}]`, "missing 'words' array");
     }
-    segment.words.forEach((word, w) => {
-      if (typeof word.text !== "string" || word.text.length === 0) {
-        fail(`segments[${s}].words[${w}]`, "missing 'text'");
-      }
-      if (!isFiniteNonNegative(word.start) || !isFiniteNonNegative(word.duration)) {
-        fail(`segments[${s}].words[${w}]`, "invalid 'start'/'duration'");
-      }
-    });
   });
   return t as SpecTranscript;
+}
+
+/** A token the parser can actually use: non-empty text + sane timing. */
+function isUsableWord(word: Partial<SpecWord>): word is SpecWord {
+  return (
+    typeof word.text === "string" &&
+    word.text.length > 0 &&
+    isFiniteNonNegative(word.start) &&
+    isFiniteNonNegative(word.duration)
+  );
 }
 
 export function parseTranscriptJson(json: string, clipName?: string): ImportedCaptions {
@@ -92,11 +98,20 @@ export function parseTranscriptJson(json: string, clipName?: string): ImportedCa
   const words: CaptionWord[] = [];
   // Punctuation tokens that arrive before any word attach to the next word.
   let pendingPrefix = "";
+  // Tokens violating the spec (missing text/timing) are skipped, not fatal.
+  let skippedTokens = 0;
 
   const segments = [...transcript.segments].sort((a, b) => (a.start ?? 0) - (b.start ?? 0));
   for (const segment of segments) {
     const speaker = speakerById.get(segment.speaker);
-    const segmentWords = [...segment.words].sort((a, b) => a.start - b.start);
+    const usable = segment.words.filter((word) => {
+      if (isUsableWord(word)) {
+        return true;
+      }
+      skippedTokens++;
+      return false;
+    });
+    const segmentWords = usable.sort((a, b) => a.start - b.start);
     for (const word of segmentWords) {
       if (word.type === "punctuation") {
         const previous = words[words.length - 1];
@@ -125,7 +140,7 @@ export function parseTranscriptJson(json: string, clipName?: string): ImportedCa
   }
 
   if (words.length === 0) {
-    fail("document", "contains no words");
+    fail("document", "contains no usable words");
   }
 
   return {
@@ -134,6 +149,7 @@ export function parseTranscriptJson(json: string, clipName?: string): ImportedCa
       ...(typeof transcript.language === "string" ? { language: transcript.language } : {}),
       ...(clipName !== undefined ? { sourceName: clipName } : {}),
       speakerNames: [...speakerById.values()],
+      ...(skippedTokens > 0 ? { skippedTokens } : {}),
     },
     words,
   };
