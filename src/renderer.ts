@@ -16,7 +16,7 @@ import {
 } from "./params";
 import ppro from "./ppro";
 import { getActiveContext } from "./premiere";
-import { styleToTemplateValues, type StyleDef } from "./style";
+import { applyOverrideToValues, styleToTemplateValues, type StyleDef } from "./style";
 import { applyTimingToLines, type TimingSettings } from "./timing";
 import {
   planFrameTimings,
@@ -199,7 +199,7 @@ export async function generateCaptions(
     const patched = patchTemplate(template, {
       text: line.text,
       label,
-      style: styleValues,
+      style: applyOverrideToValues(styleValues, line.override),
     });
     const path = await writeTempFile(`legenda-line-${i + 1}.mogrt`, patched);
 

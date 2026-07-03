@@ -175,6 +175,16 @@ test("planFrameTimings drops lines shorter than one frame", () => {
   assert.equal(plan[0].startTicks, String(45 * TPF_30));
 });
 
+test("planFrameTimings carries per-line overrides through to the plan", () => {
+  const lines = [
+    { ...makeLine(0, 1.5), override: { color: "#FF0000", italic: true } },
+    makeLine(2, 3),
+  ];
+  const plan = planFrameTimings(lines, TPF_30);
+  assert.deepEqual(plan[0].override, { color: "#FF0000", italic: true });
+  assert.equal(plan[1].override, undefined);
+});
+
 test("planFrameTimings keeps starts monotonic after clamping", () => {
   // Second line starts inside the first's final frame.
   const plan = planFrameTimings([makeLine(0, 1.999), makeLine(1.98, 3)], TPF_30);

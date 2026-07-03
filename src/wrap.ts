@@ -33,6 +33,8 @@ export interface CaptionLine {
   lastWord: number;
   /** Speaker of the line's words, when the source attributes one. */
   speaker?: string;
+  /** Per-line override, attached before generation (src/overrides.ts). */
+  override?: { color?: string; italic?: boolean };
 }
 
 /** Fraction of the char budget after which an eos word may end the line. */
@@ -68,6 +70,7 @@ export interface FramePlanEntry {
   /** Frame-aligned boundaries as tick strings for TickTime.createWithTicks. */
   startTicks: string;
   endTicks: string;
+  override?: CaptionLine["override"];
 }
 
 /**
@@ -103,6 +106,7 @@ export function planFrameTimings(
       text: lines[i].text,
       startTicks: String(startFrame * ticksPerFrame),
       endTicks: String(endFrame * ticksPerFrame),
+      ...(lines[i].override ? { override: lines[i].override } : {}),
     });
   }
   return out;

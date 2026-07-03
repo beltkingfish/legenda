@@ -88,6 +88,23 @@ export interface TemplateStyleValues {
   backgroundColor: Rgba;
   backgroundOpacity: number; // 0–100; 0 when disabled (spec: 0 ⇒ off)
   shadowOpacity: number; // 0–100; 0 when disabled
+  /** Faux italic (fonteditinfo fontFSItalicValue) — per-line override channel. */
+  italic?: boolean;
+}
+
+/** Merge a per-line override into base template values (renderer path). */
+export function applyOverrideToValues(
+  base: TemplateStyleValues,
+  override: { color?: string; italic?: boolean } | undefined
+): TemplateStyleValues {
+  if (!override) {
+    return base;
+  }
+  return {
+    ...base,
+    ...(override.color !== undefined ? { textColor: hexToRgba(override.color) } : {}),
+    ...(override.italic !== undefined ? { italic: override.italic } : {}),
+  };
 }
 
 /**

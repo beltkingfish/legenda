@@ -31,6 +31,27 @@
       </div>
       <p id="source-result" class="hint"></p>
       <ol id="line-preview" class="line-preview"></ol>
+      <!-- Per-caption editor (UI_COMPONENTS.md §5) — select a line above. -->
+      <div id="override-editor" class="override-editor">
+        <p id="override-line-label" class="hint"></p>
+        <div class="field-row">
+          <label class="field-label" for="override-color-input">
+            Color override (#RRGGBB · empty = style color)
+          </label>
+          <input id="override-color-input" class="field-input field-wide" type="text" />
+          <span id="override-color-swatch" class="swatch"></span>
+        </div>
+        <div class="field-row">
+          <label class="check-label">
+            <input id="override-italic-input" type="checkbox" /> Italic
+          </label>
+        </div>
+        <button id="clear-override-button" class="button">
+          Clear overrides on this line
+        </button>
+        <p class="hint">Overrides apply on the next Generate / Apply to all and
+          persist through global style changes until cleared.</p>
+      </div>
     </section>
 
     <!-- Caption Style (UI_COMPONENTS.md §2) -->

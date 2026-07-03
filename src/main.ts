@@ -11,6 +11,12 @@ import {
   writeTestOnSelection,
 } from "./mogrtProbe";
 import {
+  attachOverrides,
+  overrideKey,
+  reconcileOverrides,
+  type OverrideMap,
+} from "./overrides";
+import {
   exportTranscriptJson,
   findTranscribedClips,
   getActiveContext,
@@ -46,6 +52,12 @@ const importSrtButton = el<HTMLButtonElement>("import-srt-button");
 const rescanButton = el<HTMLButtonElement>("rescan-button");
 const lineLengthInput = el<HTMLInputElement>("line-length-input");
 const linePreview = el<HTMLElement>("line-preview");
+const overrideEditor = el<HTMLElement>("override-editor");
+const overrideLineLabel = el<HTMLElement>("override-line-label");
+const overrideColorInput = el<HTMLInputElement>("override-color-input");
+const overrideColorSwatch = el<HTMLElement>("override-color-swatch");
+const overrideItalicInput = el<HTMLInputElement>("override-italic-input");
+const clearOverrideButton = el<HTMLButtonElement>("clear-override-button");
 const generateButton = el<HTMLButtonElement>("generate-button");
 const clearButton = el<HTMLButtonElement>("clear-button");
 const generateStatus = el<HTMLElement>("generate-status");
@@ -126,6 +138,11 @@ async function scanForTranscript(): Promise<void> {
 // Later sections (styling, renderer) consume this state.
 let imported: ImportedCaptions | null = null;
 let lines: CaptionLine[] = [];
+/** Per-line overrides keyed by word range (src/overrides.ts). */
+let overrideStore: OverrideMap = new Map();
+let selectedLineIndex: number | null = null;
+/** Guards against the editor clobbering its own inputs mid-keystroke. */
+let suppressEditorRender = false;
 
 function currentTargetLineChars(): number {
   const parsed = Number.parseInt(lineLengthInput.value, 10);
@@ -144,10 +161,18 @@ function renderLines(): void {
   if (!imported) {
     return;
   }
-  lines = wrapWords(imported.words, {
+  const wrapped = wrapWords(imported.words, {
     targetLineChars: currentTargetLineChars(),
     maxLineSec: currentTiming.maxSec,
   });
+  // Overrides are keyed by word range: reconcile against the new wrap (stale
+  // ranges drop — never silently restyle different words), then attach for
+  // the renderer (ARCHITECTURE §6: re-applied after every regeneration).
+  overrideStore = reconcileOverrides(overrideStore, wrapped);
+  lines = attachOverrides(wrapped, overrideStore);
+  if (selectedLineIndex !== null && selectedLineIndex >= lines.length) {
+    selectedLineIndex = null;
+  }
   generateButton.disabled = lines.length === 0;
   applyStyleButton.disabled = lines.length === 0;
 
@@ -163,10 +188,13 @@ function renderLines(): void {
     (meta.kind === "srt" && meta.sourceName ? ` · ${meta.sourceName}` : "") +
     (meta.skippedTokens ? ` · ${meta.skippedTokens} malformed token(s) skipped` : "");
 
-  // Read-only preview; the editable per-caption list is a later step.
+  // Per-caption list (UI_COMPONENTS §5): click a line to edit its overrides.
   linePreview.textContent = "";
-  for (const line of lines) {
+  lines.forEach((line, index) => {
     const item = document.createElement("li");
+    item.className =
+      (index === selectedLineIndex ? "is-selected " : "") +
+      (line.override ? "has-override" : "");
     const time = document.createElement("span");
     // Amber timecode when the line leaves the WCAG safe zone (informational
     // only — generation still runs; SPECIFICATION §9).
@@ -181,9 +209,72 @@ function renderLines(): void {
     text.textContent = line.text;
     item.appendChild(time);
     item.appendChild(text);
+    item.addEventListener("click", () => {
+      selectedLineIndex = index === selectedLineIndex ? null : index;
+      renderLines();
+    });
     linePreview.appendChild(item);
+  });
+  if (!suppressEditorRender) {
+    renderOverrideEditor();
   }
 }
+
+function renderOverrideEditor(): void {
+  const line = selectedLineIndex !== null ? lines[selectedLineIndex] : undefined;
+  if (!line) {
+    overrideEditor.className = "override-editor";
+    return;
+  }
+  overrideEditor.className = "override-editor is-visible";
+  const shortText = line.text.length > 40 ? `${line.text.slice(0, 40)}…` : line.text;
+  overrideLineLabel.textContent =
+    `Line ${(selectedLineIndex ?? 0) + 1} · “${shortText}”`;
+  const override = overrideStore.get(overrideKey(line));
+  overrideColorInput.value = override?.color ?? "";
+  overrideItalicInput.checked = override?.italic === true;
+  setSwatch(overrideColorSwatch, override?.color ?? "");
+}
+
+function readOverrideEditor(): void {
+  const line = selectedLineIndex !== null ? lines[selectedLineIndex] : undefined;
+  if (!line) {
+    return;
+  }
+  const key = overrideKey(line);
+  const colorRaw = overrideColorInput.value.trim();
+  const override: { color?: string; italic?: boolean } = {};
+  if (colorRaw !== "" && isValidHexColor(colorRaw)) {
+    override.color = colorRaw.startsWith("#") ? colorRaw : `#${colorRaw}`;
+  }
+  if (overrideItalicInput.checked) {
+    override.italic = true;
+  }
+  if (override.color !== undefined || override.italic !== undefined) {
+    overrideStore.set(key, override);
+  } else {
+    overrideStore.delete(key);
+  }
+  setSwatch(overrideColorSwatch, override.color ?? "");
+  suppressEditorRender = true;
+  renderLines();
+  suppressEditorRender = false;
+}
+
+overrideColorInput.addEventListener("input", () => {
+  readOverrideEditor();
+});
+overrideItalicInput.addEventListener("change", () => {
+  readOverrideEditor();
+});
+clearOverrideButton.addEventListener("click", () => {
+  const line = selectedLineIndex !== null ? lines[selectedLineIndex] : undefined;
+  if (!line) {
+    return;
+  }
+  overrideStore.delete(overrideKey(line));
+  renderLines();
+});
 
 function showImported(result: ImportedCaptions): void {
   imported = result;

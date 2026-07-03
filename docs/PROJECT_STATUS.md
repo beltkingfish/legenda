@@ -2,7 +2,8 @@
 
 Update this at the end of any session with meaningful changes (see CLAUDE.md → Update ritual).
 
-Current phase: **Phase 1 — steps 1–9 done and verified live. Next: step 10 (overrides).**
+Current phase: **Phase 1 — ALL TEN BUILD STEPS DONE and verified live.
+Remaining for phase close: teleprompter template + template v2 authoring.**
 Last updated: 2026-07-03.
 
 ## Done
@@ -230,6 +231,40 @@ Last updated: 2026-07-03.
 
 - 2026-07-03 — **Step 9 verified live** after the action-scoping fix: full generate
   completes again; timing warnings show exact copy and never block; settings apply.
+
+- 2026-07-03 — Step 10 built: per-line overrides (UI_COMPONENTS §5). The line
+  preview is now the per-caption editor: click a line → color override (hex) +
+  italic toggle + "Clear overrides on this line" (exact copy); overridden lines get
+  an accent marker. Overrides live OFF the derived lines in a store keyed by word
+  range (`src/overrides.ts`): they survive re-wraps when the line's word range is
+  unchanged, drop otherwise (never restyle different words), and are re-applied on
+  every regenerate — persisting through global style changes per SPECIFICATION §7.
+  Color rides the per-line patch (override merged into template values); italic
+  writes `fontFSItalicValue` (control + per-run capParam array). 69 tests.
+
+- 2026-07-03 — **CORRECTION + live results.** Color override verified live: lands on
+  the exact selected line (Line 11, #BBBBBB over the Bold preset). The earlier
+  "italic renders" claim was WRONG — that slant was the maintainer's own
+  Properties-panel hand-edit (font size 88 gave it away), not our flag. Our
+  `fontFSItalicValue` patch is inert, gated by the authored
+  `capPropFontFauxStyleEdit: false` — exactly as pre-flagged. Attempted fix before
+  resorting to an AE re-export: the gate is itself a definition.json field, so the
+  patcher now sets `capPropFontFauxStyleEdit: true` (fonteditinfo + capParam) on
+  italic lines. If the gate flip doesn't render either → fall back to the
+  5-minute AE re-export with "Enable Faux Styles" checked.
+- 2026-07-03 — **Scope decision (SPECIFICATION §7 updated first)**: Premiere's
+  Properties panel is the official per-instance *finishing pass* — it can hand-tune
+  fonts/sizes/colors/text on individual instances because we exposed the params.
+  Plugin owns everything that must survive regeneration; regenerate DISCARDS
+  Properties hand-edits (documented). The plugin deliberately will not grow
+  per-caption font/size/bg/text-editing UI. (Possible future EXPERIMENTS idea:
+  harvesting hand-edited color/number values back into the override store before
+  regenerate — text/font not readable via API, so it would be partial.)
+
+- 2026-07-03 — **Step 10 fully verified live**: Line 11 renders in the override
+  color AND italic after the gate flip — `capPropFontFauxStyleEdit: true` patched
+  per italic line works; NO template re-export needed. Overrides land on the
+  exact selected line.
 
 ## In progress
 - (none)
