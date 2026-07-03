@@ -6,7 +6,8 @@ Last updated: 2026-07-03.
 
 Recipes in build order:
 - **§A** `legenda-fade-COLORTEST` — 5-minute throwaway experiment (per-word
-  color gate). Do this first; its verdict may add one step to §B.
+  color gate). **DONE + ANSWERED 2026-07-03: route closed** (see §A verdict);
+  per-word color moved into §B as emphasis slots (§B3).
 - **§B** `legenda-fade-v2` — transition ramp (makes the Timing field live),
   outline, faux styles. Start from the v1 project.
 - **§C** `legenda-teleprompter-v1` — the second animation style
@@ -38,6 +39,13 @@ route for per-word color is closed and we make a spec call.
 5. Drop the file path in chat. The diff against v1's definition.json is the
    verdict; the .aep and .mogrt can be deleted afterwards.
 
+**VERDICT (run 2026-07-03): route closed.** The export carried the red word
+(embedded .aep differs from v1) yet definition.json gained NO new keys and
+`capPropTextRunCount` stayed 1 — fill color doesn't even create a run
+boundary; the serialization tracks font-edit properties only. Per-word color
+therefore renders via text-animator **emphasis slots** (§B3), which use only
+proven patch primitives (sliders + color controls).
+
 ---
 
 ## §B. legenda-fade-v2 (start from the v1 project)
@@ -46,7 +54,9 @@ Goals: (1) `Transition (ms)` slider driving the fade ramps — turns the
 panel's inert Transition duration field live, and doubles as EXPERIMENTS
 EXP-001's gate (an expression-driven exposed param changing animation
 timing); (2) outline via layer-style Stroke (needed by the Minimal preset);
-(3) faux styles enabled at author time. **Deliberately NOT in v2:**
+(3) per-word color **emphasis slots** (§A closed the patch route, so color
+renders via text animators driven by exposed sliders/colors — §B3); (4) faux
+styles enabled at author time. **Deliberately NOT in v2:**
 - *Line height* — one instance renders ONE line; leading has no visible
   effect on single-line point text. Carried in StyleDef for a multi-line
   future, meaningless to expose now.
@@ -103,32 +113,78 @@ timing); (2) outline via layer-style Stroke (needed by the Minimal preset);
    stroke misrenders, stop here and report; the fallback design changes and
    guessing wastes an export cycle.
 
-### B3. Faux styles at author time
+### B3. Per-word color — emphasis slots (replaces the Fill effect)
+Text animators recolor character RANGES at render time without touching the
+text document (per-run italic untouched); their ranges/colors are driven by
+exposed sliders/color controls — the proven patch primitives. Base color
+must move off the Fill effect first: the effect flattens ALL glyph color and
+would paint over the animators.
+1. **Delete the Fill effect** from Caption Text (Effect Controls → Fill →
+   delete). Its EG entry (`Text Color`) drops out of the panel — re-added
+   from Controls in §B5.
+2. On **Controls**, add and rename:
+   - **Color Control** → **`Text Color`**, white.
+   - **Slider Control** ×4 → **`Emphasis 1 Start`**, **`Emphasis 1 End`**,
+     **`Emphasis 2 Start`**, **`Emphasis 2 End`** — all **0**
+     (Start = End ⇒ slot inactive).
+   - **Color Control** ×2 → **`Emphasis 1 Color`**, **`Emphasis 2 Color`**.
+3. **Base animator**: select Caption Text → in the timeline, Text →
+   **Animate ▸ Fill Color ▸ RGB** → rename the animator **"Base Color"**.
+   No range selector changes (default = whole text). Alt-click its
+   **Fill Color** stopwatch:
+   ```js
+   thisComp.layer("Controls").effect("Text Color")("Color")
+   ```
+   The text renders white again — now via the animator.
+4. **Emphasis animators** (twice — slot 1 shown): **Animate ▸ Fill Color ▸
+   RGB** → rename **"Emphasis 1"**. Open its **Range Selector 1 →
+   Advanced**: **Units: Index**, **Based On: Characters**, **Shape: Square**,
+   **Smoothness: 0%** (crisp word edges). Alt-click and paste:
+   - **Start**: `thisComp.layer("Controls").effect("Emphasis 1 Start")("Slider")`
+   - **End**: `thisComp.layer("Controls").effect("Emphasis 1 End")("Slider")`
+   - animator's **Fill Color**: `thisComp.layer("Controls").effect("Emphasis 1 Color")("Color")`
+   Repeat as **"Emphasis 2"** wired to the slot-2 controls.
+5. Timeline order must read **Base Color → Emphasis 1 → Emphasis 2** (later
+   animators win inside their ranges).
+6. Sanity check: set `Emphasis 1 Start` **5**, `End` **9** → exactly the word
+   "text" ("Line text goes here", 0-based, end-exclusive) renders in the
+   emphasis color. Reset both to **0**.
+
+### B4. Faux styles at author time
 - In the EG panel select **Line Text** → **Edit Properties…** → alongside
   Custom Font Selection + Font Size Adjustment, also check **Faux Styles**
   (exports `capPropFontFauxStyleEdit: true`, so the patcher's gate flip
   becomes belt-and-braces rather than load-bearing).
 
-### B4. EG panel additions and export
+### B5. EG panel additions and export
 - Add to the panel (drag → rename to the EXACT name):
   | Drag this | Rename EG entry to |
   | --- | --- |
   | Controls → Transition (ms) (slider) | `Transition (ms)` |
   | Controls → Outline Width (slider) | `Outline Width` |
   | Controls → Outline Color (color) | `Outline Color` |
+  | Controls → Text Color (color) | `Text Color` (replaces the Fill-effect entry deleted in §B3) |
+  | Controls → Emphasis 1 Start (slider) | `Emphasis 1 Start` |
+  | Controls → Emphasis 1 End (slider) | `Emphasis 1 End` |
+  | Controls → Emphasis 1 Color (color) | `Emphasis 1 Color` |
+  | Controls → Emphasis 2 Start (slider) | `Emphasis 2 Start` |
+  | Controls → Emphasis 2 End (slider) | `Emphasis 2 End` |
+  | Controls → Emphasis 2 Color (color) | `Emphasis 2 Color` |
 - Keep every v1 entry (including the `Background` checkbox — the patch
   channel drives checkboxes, the old drop-decision is cancelled; see
   MOGRT_SPEC). Keep `Legenda Version` last. Slider ranges: Transition (ms)
-  0–1000, Outline Width 0–32.
+  0–1000, Outline Width 0–32, Emphasis Start/End 0–200.
 - Export → Local Drive → this repo's `mogrt/` → **`legenda-fade-v2`**.
   Commit `legenda-fade-v2.mogrt` + `mogrt_build_v2.aep`; v1 stays shipped
   until v2 passes live checks (renderer keeps pointing at v1 until the
   plugin work lands).
 
-### B5. Live checks (with the plugin, after my renderer/patcher update)
+### B6. Live checks (with the plugin, after my renderer/patcher update)
 - Transition 150 vs 500 ms visibly differ on generated captions (EXP-001
   gate ✓/✗). Minimal preset renders its 2 px outline. Per-word italic still
-  renders (nothing regressed the run arrays).
+  renders (nothing regressed the run arrays). A per-word color override
+  renders via an emphasis slot; base `Text Color` still patches (animator
+  route, same exposed name).
 
 ---
 
@@ -198,7 +254,9 @@ time, so they land on a SECOND plugin-owned track.
 - EG panel entries = the v1 Tier-1/2 set (Line Text, Text Color, Background,
   Background Color, Background Opacity, Shadow Opacity, Legenda Version)
   **plus `Top Row`** (drag the checkbox; exact name). Faux Styles checked on
-  Line Text as in §B3. No Transition, no Outline in this template's v1.
+  Line Text as in §B4. No Transition, Outline, or Emphasis controls in this
+  template's v1 (the §C0 duplicate carries them — remove those EG entries
+  and keep the comp's extra Controls effects unexposed; they're inert).
 - Export → `mogrt/legenda-teleprompter-v1.mogrt`; commit with the .aep.
 
 ### C6. What "good" looks like (eyeball in AE before exporting)

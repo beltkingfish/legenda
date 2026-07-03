@@ -336,16 +336,32 @@ Last updated: 2026-07-03.
   strips id/name/description; `makeCustomStyle` strips leftovers from styles
   saved before the fix. 98 tests.
 
+- 2026-07-03 — **COLORTEST experiment ANSWERED: per-word color patch route
+  CLOSED.** The maintainer authored a red middle word and exported; the
+  embedded .aep differs from v1 (change landed) yet definition.json gained no
+  new keys and `capPropTextRunCount` stayed 1 — fill color doesn't even
+  create a run boundary; the serialization tracks font-edit properties only.
+  **Route decided instead: emphasis slots** — text animators whose range
+  (character indices) and color are driven by exposed sliders/color controls,
+  i.e. proven patch primitives; requires moving base `Text Color` from the
+  Fill effect to a base animator (same exposed name + value shape ⇒ no
+  patcher change for base color). Two slots ⇒ up to two colored word-groups
+  per line (documented limit). Folded into the fade v2 recipe
+  (MOGRT_AUTHORING §B3); contract in MOGRT_SPEC "Fade v2 exposures".
+  Plugin-side work (word→char-range mapping, slot patching, editor color per
+  word) follows once v2 is exported and the animator route passes its live
+  gate.
+
 ## In progress
 - (none)
 
 ## Next (Phase 2 build order)
 1. ~~Per-word italic emphasis~~ — done, verified live.
-2. Per-word color — **gated on a 5-minute AE experiment**: recolor one word of
-   the Line Text in `mogrt_build.aep`, re-export the MOGRT, diff definition.json.
-   If the exporter emits a per-run color field → wire it like italic. If not →
-   the patch route is closed; spec-first decision (descope per-word color to the
-   Properties-panel finishing pass, or template redesign).
+2. Per-word color — experiment done, **route decided: emphasis slots in fade
+   v2** (MOGRT_AUTHORING §B3). Plugin work after the v2 export lands: patch
+   `Emphasis N Start/End/Color` from word overrides (word→char-range mapping
+   exists in the run builder), word-chip color UI, live gate = an animator
+   range driven by patched sliders renders in Premiere.
 3. ~~Custom style save/load~~ — done, verified live (incl. persistence across
    plugin restart).
 4. ~~Style export/import~~ — done, verified live (full round trip).

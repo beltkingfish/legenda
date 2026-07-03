@@ -50,7 +50,18 @@ work — recorded here for that case.)
 | `Transition (ms)` | slider 0–1000, default 150 | `TimingSettings.transitionMs` | Expression-driven opacity ramps; protected regions widened to 500 ms each, so >500 ms ramps render time-stretched. This IS the EXPERIMENTS EXP-001 gate. |
 | `Outline Width` | slider 0–32, default 0 | `outline.width` (×designScale); `0` ⇒ `outline.enabled: false` — no checkbox | Layer-style Stroke (Outside), NOT text-style expressions — a returned text style would flatten the per-run arrays that per-word italic rides. |
 | `Outline Color` | color control | `outline.color` | |
+| `Emphasis 1 Start` / `Emphasis 1 End` | sliders 0–200, default 0 | per-word color override (char range) | Character indices, 0-based start / exclusive end; Start = End ⇒ slot inactive. Drive a text animator's range selector. |
+| `Emphasis 1 Color` | color control | per-word color override | |
+| `Emphasis 2 Start` / `Emphasis 2 End` / `Emphasis 2 Color` | as slot 1 | second colored range | Two slots ⇒ up to two independently colored word-groups per line (adjacent emphasized words merge into one range; a third disjoint group is a known limit). |
 | `Legenda Version` | slider, value **2** | — | |
+
+**`Text Color` mechanism change in v2 (name and value shape UNCHANGED).** The
+v1 Fill *effect* flattens all glyph color and would paint over emphasis
+animators, so v2 deletes it; base color becomes a Color Control driving a
+whole-text base animator. The exposed control still serializes as a color
+clientControl named `Text Color` — the patcher needs no change for base color.
+Emphasis animators sit after the base animator and override it inside their
+ranges without touching the text document (per-run italic unaffected).
 
 Also authored into v2: **Faux Styles enabled** on Line Text's EG properties
 (exports `capPropFontFauxStyleEdit: true`; the patcher's per-line gate flip
@@ -66,8 +77,8 @@ expression-drivable; stays deferred.
 
 ### Tier 3 — still deferred
 - Background `cornerRadius` / `paddingX` / `paddingY` (preset-typical values
-  baked into the template), shadow blur/distance, per-word color slots
-  (gated on the §A COLORTEST experiment — see "Per-text-run styling" note).
+  baked into the template), shadow blur/distance, a third+ emphasis slot
+  (two ship in v2 — see the fade v2 table).
 
 ## Animation behavior
 
@@ -180,10 +191,14 @@ scope call, update SPECIFICATION.md if taken).
   entry per run; `capPropTextRunCount` is the run count. Faux-style values
   are gated by `capPropFontFauxStyleEdit` (flip true when any run uses one —
   confirmed live for italic, step 10). **There is NO per-run color field** in
-  this serialization (full key sweep of the shipped template, 2026-07-03) —
-  `Text Color` is whole-caption. Open question: does AE's exporter emit a
-  color array when the AUTHORED text mixes fill colors? (5-minute experiment:
-  recolor one word in mogrt_build.aep, re-export, diff definition.json.)
+  this serialization (full key sweep of the shipped template, 2026-07-03).
+  **COLORTEST experiment ANSWERED (2026-07-03): route closed.** A template
+  authored with a red middle word exported with NO new keys and
+  `capPropTextRunCount` still 1 — fill color does not even create a run
+  boundary; the serialization tracks font-edit properties only, and the color
+  lives solely in the binary .aep (not patchable). Per-word color therefore
+  goes through **emphasis slots** (text animators; see "Fade v2 exposures"),
+  not the run arrays.
 
 ## Open questions still to answer
 1. Plugin-owned track creation without auto-create: check defs for a track-add
