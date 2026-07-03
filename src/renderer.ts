@@ -8,7 +8,8 @@
 import { readPluginFile, writeTempFile } from "./files";
 import { loadTemplate, patchTemplate, type MogrtTemplate } from "./mogrtPatch";
 import {
-  scaleItemToSequence,
+  findComponentParams,
+  MOTION_MATCH_NAME,
   TEMPLATE_HEIGHT_PX,
   type ProjectTxn,
   type TrackItemLike,
@@ -16,6 +17,7 @@ import {
 import ppro from "./ppro";
 import { getActiveContext } from "./premiere";
 import { styleToTemplateValues, type StyleDef } from "./style";
+import { applyTimingToLines, type TimingSettings } from "./timing";
 import {
   planFrameTimings,
   PREMIERE_TICKS_PER_SECOND,
@@ -155,6 +157,7 @@ export async function clearCaptions(): Promise<number> {
 export async function generateCaptions(
   lines: CaptionLine[],
   style: StyleDef,
+  timing: TimingSettings,
   onProgress?: (done: number, total: number) => void
 ): Promise<GenerateResult> {
   if (lines.length === 0) {
@@ -172,7 +175,10 @@ export async function generateCaptions(
     console.warn("Legenda: unreadable sequence timebase; assuming 30 fps grid");
     ticksPerFrame = PREMIERE_TICKS_PER_SECOND / 30;
   }
-  const plan: FramePlanEntry[] = planFrameTimings(sanitizeLineTimings(lines), ticksPerFrame);
+  // Timing settings shape the display windows (min/max/gap — warn-only
+  // settings, always applied), then hard timing hygiene runs on the result.
+  const timed = applyTimingToLines(lines, timing);
+  const plan: FramePlanEntry[] = planFrameTimings(sanitizeLineTimings(timed), ticksPerFrame);
   const droppedLines = lines.length - plan.length;
 
   const txn = project as unknown as ProjectTxn;
@@ -218,15 +224,34 @@ export async function generateCaptions(
       );
     }
 
-    // Trim before the next insert so the default ~4s duration never overlaps
-    // the next line's insert point (insert semantics split/shift at that time).
+    // One transaction per line: trim (must land before the next insert, or
+    // the default ~4s duration overlaps the next insert point) + scale.
+    // Batching also cuts UXP host-API round-trips ~3× — a mitigation for the
+    // crash both dumps place inside Premiere's UXP API layer (2026-07-03).
+    scalePct = (frame.height / TEMPLATE_HEIGHT_PX) * 100;
+    const motionParams = await findComponentParams(txn, item, MOTION_MATCH_NAME);
+    const scaleParam = motionParams?.find((p) => p.name === "Scale");
+    if (!scaleParam) {
+      throw new Error(`Motion → Scale param not found on caption ${i + 1}`);
+    }
     txn.lockedAccess(() => {
+      // Keyframes may be created outside the transaction callback; ACTIONS
+      // may not — like createEmptySelection's selection, an Action is scoped
+      // to the callback that consumes it ("The script object is no longer
+      // valid" mid-generate, found live 2026-07-03).
+      const keyframe = scaleParam.param.createKeyframe(scalePct);
+      const timeVarying = scaleParam.param.isTimeVarying();
       txn.executeTransaction((ca) => {
-        ca.addAction(item.createSetEndAction(ppro.TickTime.createWithTicks(line.endTicks)));
-      }, "Legenda: trim caption");
+        ca.addAction(
+          item.createSetEndAction(ppro.TickTime.createWithTicks(line.endTicks))
+        );
+        if (timeVarying) {
+          ca.addAction(scaleParam.param.createSetTimeVaryingAction(false));
+        }
+        ca.addAction(scaleParam.param.createSetValueAction(keyframe, true));
+      }, `Legenda: caption ${i + 1}`);
     });
 
-    scalePct = await scaleItemToSequence(txn, item, frame.height);
     inserted++;
     onProgress?.(inserted, plan.length);
   }

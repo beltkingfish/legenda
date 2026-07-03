@@ -2,7 +2,7 @@
 
 Update this at the end of any session with meaningful changes (see CLAUDE.md → Update ritual).
 
-Current phase: **Phase 1 — steps 1–8 done and verified live. Next: step 9 (timing panel).**
+Current phase: **Phase 1 — steps 1–9 done and verified live. Next: step 10 (overrides).**
 Last updated: 2026-07-03.
 
 ## Done
@@ -197,6 +197,39 @@ Last updated: 2026-07-03.
   afterwards passed — not reproducible on demand). Maintainer will capture the macOS
   crash report file on the next occurrence; the crashed-thread stack will
   distinguish our-API-usage from Premiere-internal causes.
+- 2026-07-03 — **Crash dumps analyzed (both crashes).** Sentry minidumps recovered
+  from `~/Library/Caches/Adobe/Premiere Pro/26.0/SentryIO-db/completed/` (copies in
+  gitignored `crash-reports/`; custom minidump parser in the session scratchpad).
+  Findings: BOTH crashes are EXC_BAD_ACCESS at the **identical instruction**
+  (`Adobe Premiere Pro 2026 +0xaa692cc`), reached from JavaScript through
+  `libdynamic-napi` (UXP's JS↔native bridge; second dump also via
+  `dynamic-torqnative`, the UXP runtime) into Premiere's UXP host-API
+  implementation cluster. Verdict: **a deterministic Adobe bug in the UXP API
+  layer**, triggered by documented API usage under our workload; which specific
+  call cannot be named without symbols. Strong escalation package (2 dumps +
+  repro workload). Mitigation applied: per-line trim+scale batched into ONE
+  transaction (~3× fewer host-API round-trips per generate).
+
+- 2026-07-03 — Step 9 built: Timing section (UI_COMPONENTS §4) with the exact field
+  labels and warning copy; warnings render amber inline and NEVER block. The
+  settings genuinely apply: `minSec` extends short captions (bounded by the next
+  caption minus gap), `maxSec` caps display AND feeds the wrapper's duration
+  budget (re-wraps live), `gapMs` trims breathing room between contiguous
+  captions, `transitionMs` is stored + warned but inert until template v2 exposes
+  the ramp (disclosed in the panel). Line preview marks WCAG-out-of-bounds
+  timecodes amber. Pure logic in `src/timing.ts`; 8 new tests (59 total).
+
+- 2026-07-03 — Timing-panel warnings confirmed live (transition 0 → exact amber
+  copy, applied anyway). Yesterday's batching mitigation broke a scoping rule:
+  Actions created before the executeTransaction callback (even inside the same
+  lockedAccess) go stale intermittently — generate died at ~7/38 with "script
+  object is no longer valid". Fixed: actions created in-callback; batching kept.
+- Maintainer reminder: the Transition duration field is INERT with template v1
+  (fixed ≈150ms authored fade; disclosed under the field) — it starts driving the
+  animation when template v2 exposes the ramp.
+
+- 2026-07-03 — **Step 9 verified live** after the action-scoping fix: full generate
+  completes again; timing warnings show exact copy and never block; settings apply.
 
 ## In progress
 - (none)
@@ -403,6 +436,11 @@ Last updated: 2026-07-03.
 - Callback-style host APIs (`TrackItemSelection.createEmptySelection`) scope the
   provided object's validity to the callback — using it afterwards throws "The
   script object is no longer valid". Do all work inside the callback.
+- The same scoping applies to **Action objects**: create them INSIDE the
+  `executeTransaction` callback that consumes them (creating them earlier — even
+  within the same lockedAccess — intermittently throws "The script object is no
+  longer valid" mid-generate; found live 2026-07-03 when batching broke this
+  rule). Keyframes MAY be created outside the callback.
   Nuance for the defs-gap list above: cc-ext-uxp-types omissions are sometimes
   accurate about the runtime (this case) and sometimes not (`require`, `console`,
   `classList`) — verify live before declaring a global in globals.d.ts.

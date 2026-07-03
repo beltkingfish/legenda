@@ -43,3 +43,7 @@ Thumbs.db
 # Test / coverage
 coverage/
 .nyc_output/
+
+# Crash dumps kept for the Adobe escalation (binary, not for the repo)
+crash-reports/
+

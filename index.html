@@ -103,6 +103,33 @@
       </div>
     </section>
 
+    <!-- Timing (UI_COMPONENTS.md §4 — warnings never block) -->
+    <section class="section">
+      <h2 class="section-title">Timing</h2>
+      <div class="field-row">
+        <label class="field-label" for="min-display-input">Minimum display time (WCAG: 1.33s)</label>
+        <input id="min-display-input" class="field-input" type="number" min="0" step="0.01" />
+        <p id="min-display-warning" class="timing-warning"></p>
+      </div>
+      <div class="field-row">
+        <label class="field-label" for="max-display-input">Maximum display time (WCAG: 7s)</label>
+        <input id="max-display-input" class="field-input" type="number" min="0.1" step="0.1" />
+        <p id="max-display-warning" class="timing-warning"></p>
+      </div>
+      <div class="field-row">
+        <label class="field-label" for="transition-input">Transition duration (rec: 100–200ms)</label>
+        <input id="transition-input" class="field-input" type="number" min="0" step="10" />
+        <p id="transition-warning" class="timing-warning"></p>
+        <p class="hint">Template v1 fades are authored at ≈150 ms; this setting takes
+          effect when template v2 exposes the transition.</p>
+      </div>
+      <div class="field-row">
+        <label class="field-label" for="gap-input">Gap between captions (rec: 0–200ms)</label>
+        <input id="gap-input" class="field-input" type="number" min="0" step="10" />
+        <p id="gap-warning" class="timing-warning"></p>
+      </div>
+    </section>
+
     <!-- Generate / regenerate (UI_COMPONENTS.md §6) -->
     <section class="section">
       <h2 class="section-title">Generate</h2>

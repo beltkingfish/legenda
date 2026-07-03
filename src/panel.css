@@ -225,6 +225,22 @@ body {
   border-radius: 3px;
 }
 
+.timing-warning {
+  display: none;
+  margin: 4px 0 0;
+  color: var(--warn);
+  line-height: 1.4;
+}
+
+.timing-warning.is-visible {
+  display: block;
+}
+
+/* Amber timecode in the line preview when a line leaves the WCAG safe zone. */
+.line-time.is-out-of-bounds {
+  color: var(--warn);
+}
+
 .probe-output {
   margin: 10px 0 0;
   min-height: 1.5em;
