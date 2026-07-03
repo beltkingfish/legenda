@@ -248,6 +248,16 @@ Last updated: 2026-07-02.
   "PATCHED BY LEGENDA OK". **Live test pending**: insert the PATCHTEST file via the
   probe's file picker — if the Program monitor shows the patched text, per-line text
   via template patching is proven end to end.
+- **Run #6 (2026-07-02): color range ANSWERED + blank-monitor explained.**
+  Color channels read as **0–1 floats** (white text 1,1,1; black bg 0,0,0). Alpha
+  reads exactly 1/255 (0.00392…) — semantics unclear, flagged, likely unused by the
+  Fill effect. The PATCHTEST insert showed NO text in the monitor — almost certainly
+  NOT a patch failure: the probe inserted the UHD-native template unscaled into a
+  ~1080 sequence, so the lower-third caption (comp y≈1880) sits below the visible
+  center-crop (rows 540–1620). Probe now auto-scales inserted items
+  (Motion → Scale = frameHeight/2160 × 100 via the proven number path).
+  **Pending re-check**: manual Scale=50 on the existing PATCHTEST clip, or re-insert
+  after reload — confirm "PATCHED BY LEGENDA OK" renders.
 - **Maintainer decision needed (architecture change):** adopt per-line .mogrt
   patching for caption text (API still drives colors/numbers) vs waiting on Adobe.
   If adopted: ARCHITECTURE §3 + SPECIFICATION get updated first, per CLAUDE.md.
