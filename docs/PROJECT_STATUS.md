@@ -2,10 +2,10 @@
 
 Update this at the end of any session with meaningful changes (see CLAUDE.md → Update ritual).
 
-Current phase: **Phase 2 — steps 1 (per-word emphasis) and 3 (custom styles)
-verified live; step 4 (style export/import) built, awaiting live verify.
-Step 2 (per-word color) gated on the AE recolor experiment. Phase 1 close
-items still open: teleprompter template + template v2 authoring.**
+Current phase: **Phase 2 — steps 1 (per-word emphasis), 3 (custom styles), and
+4 (style export/import) done and verified live. Step 2 (per-word color) gated
+on the AE recolor experiment. Phase 1 close items still open: teleprompter
+template + template v2 authoring.**
 Last updated: 2026-07-03.
 
 ## Done
@@ -326,11 +326,18 @@ Last updated: 2026-07-03.
   multi-style file works too), auto-loads single-style files into the working
   controls, and reports skipped unreadable entries. 97 tests.
 
+- 2026-07-03 — **Step 4 verified live, full round trip**: "orioles" exported →
+  deleted from My styles → imported back → loads and renders. **Platform gate
+  passed: `getFileForSaving` works in Premiere's UXP runtime** — every file API
+  the plugin uses is now live-proven. Byte-audit of the exported artifact found
+  one leak: the working style carried the source PRESET's `description` (e.g.
+  Minimal's text on an orange style) into saves/exports, because `getPreset`
+  returned the whole catalog entry. Fixed at both choke points: `getPreset`
+  strips id/name/description; `makeCustomStyle` strips leftovers from styles
+  saved before the fix. 98 tests.
+
 ## In progress
-- **Step 4 live checks**: (a) `getFileForSaving` picker works in Premiere's UXP
-  runtime (verified in defs, never exercised live — the read-side pickers and
-  the data folder are proven); (b) export a style → import it back (delete it
-  first to see it reappear); (c) status copy matches UI_COMPONENTS §2.
+- (none)
 
 ## Next (Phase 2 build order)
 1. ~~Per-word italic emphasis~~ — done, verified live.
@@ -341,7 +348,7 @@ Last updated: 2026-07-03.
    Properties-panel finishing pass, or template redesign).
 3. ~~Custom style save/load~~ — done, verified live (incl. persistence across
    plugin restart).
-4. Style export/import — built; live verify pending (see In progress).
+4. ~~Style export/import~~ — done, verified live (full round trip).
 5. Additional animations/presets — after the Phase 1 close items: teleprompter
    template (MOGRT_SPEC strategies) + template v2 exposures (transition ramp,
    line height, letter spacing, alignment, outline).

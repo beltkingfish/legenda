@@ -35,11 +35,17 @@ export function makeCustomStyle(name: string, style: StyleDef): CustomStyle {
   if (trimmed === "" || id === "") {
     throw new Error("A custom style needs a name.");
   }
-  return {
-    ...(JSON.parse(JSON.stringify(style)) as StyleDef),
-    id,
-    name: trimmed,
+  // Strip catalog metadata a working style may still carry (e.g. a preset
+  // description loaded from an older save) — id/name below are the entry's own.
+  const clone = JSON.parse(JSON.stringify(style)) as StyleDef & {
+    id?: string;
+    name?: string;
+    description?: string;
   };
+  delete clone.id;
+  delete clone.name;
+  delete clone.description;
+  return { ...clone, id, name: trimmed };
 }
 
 /**

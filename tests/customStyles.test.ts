@@ -95,6 +95,20 @@ test("parse throws on unreadable JSON (caller starts empty, loudly)", () => {
   assert.throws(() => parseCustomStylesFile("not json {"));
 });
 
+test("saves and exports carry no catalog metadata from presets", () => {
+  // getPreset must return a pure StyleDef (no id/name/description)…
+  const working = getPreset("minimal") as Record<string, unknown>;
+  assert.equal(working.id, undefined);
+  assert.equal(working.name, undefined);
+  assert.equal(working.description, undefined);
+  // …and makeCustomStyle strips leftovers from styles saved before the fix
+  // (found live 2026-07-03: an exported style carried Minimal's description).
+  const legacy = { ...getPreset("minimal"), description: "stale preset text" };
+  const saved = makeCustomStyle("Clean Export", legacy) as Record<string, unknown>;
+  assert.equal(saved.description, undefined);
+  assert.equal(saved.name, "Clean Export");
+});
+
 test("an exported style file imports back as the same entry (§10 round trip)", () => {
   const json = exportStyleFile("Shared Look", getPreset("bold"));
   const { styles, skipped } = parseCustomStylesFile(json);

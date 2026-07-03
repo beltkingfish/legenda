@@ -38,19 +38,29 @@ export type PresetId = "clean" | "bold" | "minimal";
 const presets = presetsJson.presets as unknown as (StyleDef & {
   id: PresetId;
   name: string;
+  description?: string;
 })[];
 
 export function presetIds(): { id: PresetId; name: string }[] {
   return presets.map((p) => ({ id: p.id, name: p.name }));
 }
 
-/** Deep-cloned preset — safe to mutate as the working style. */
+/**
+ * Deep-cloned preset — safe to mutate as the working style. Catalog metadata
+ * (id/name/description) is stripped: the working style is a pure StyleDef,
+ * so it can't leak another style's description into saves/exports (found in
+ * a live-exported file, 2026-07-03).
+ */
 export function getPreset(id: PresetId): StyleDef {
   const preset = presets.find((p) => p.id === id);
   if (!preset) {
     throw new Error(`Unknown preset "${id}"`);
   }
-  return JSON.parse(JSON.stringify(preset)) as StyleDef;
+  const clone = JSON.parse(JSON.stringify(preset)) as Partial<(typeof presets)[number]>;
+  delete clone.id;
+  delete clone.name;
+  delete clone.description;
+  return clone as StyleDef;
 }
 
 export type Rgba = [number, number, number, number];
