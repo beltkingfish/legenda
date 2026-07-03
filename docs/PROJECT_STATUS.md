@@ -219,13 +219,16 @@ Last updated: 2026-07-02.
   `value.value` and passing it to `createSetValueAction`. Also learned: the unnamed
   checkbox param reads as plain `boolean` (outer `{"value":true}`); number params
   read fine via getValueAtTime; the earlier `Background Opacity` write persisted.
-- **Probes upgraded to the keyframe path (awaiting live run #3):** inspector +
-  write-test readback now fall back to `getKeyframePtr`; "Round-trip Line Text" is
-  now the full five-step recipe test — read keyframe → write back unchanged →
-  mutate `value.value` to test text → write → re-read. If it prints "TEXT WRITE
-  PATH PROVEN ✓", the step-7 renderer is fully unblocked. Maintainer: reload,
-  select the MOGRT clip, run "Read all param values" (color range) and
-  "Round-trip Line Text", paste both.
+- **Run #3 (2026-07-02): `getKeyframePtr(TIME_ZERO)` returns NOTHING for the static
+  text/color params** — they have no keyframe at any *time* (not time-varying), so
+  the "at time" door is the wrong one. Numbers/boolean still read via getValueAtTime.
+- **Probes upgraded (awaiting run #4):** typed-keyframe resolution now tries
+  `getStartValue()` first (defs: "the start value (keyframe) of the component
+  param" — the natural companion of createSetValueAction for static params), then
+  `getKeyframePtr()` with no arg, then with TIME_ZERO; every reader and the
+  round-trip use it and report which door worked. If the round-trip prints "TEXT
+  WRITE PATH PROVEN ✓", step 7 is fully unblocked. Maintainer: reload, select the
+  MOGRT, run "Read all param values" + "Round-trip Line Text", paste both.
 
 ## Discovered API limitations (append as found)
 - Caption-track text read/write: not available (as of research date).

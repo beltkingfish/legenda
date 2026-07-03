@@ -29,6 +29,8 @@ interface ParamLike {
   createSetValueAction(keyframe: unknown, safeForPlayback?: boolean): unknown;
   getValueAtTime(time: unknown): Promise<unknown>;
   getKeyframePtr(time?: unknown): KeyframeLike | null | undefined;
+  /** Static-value keyframe — the companion of createSetValueAction. */
+  getStartValue(): Promise<KeyframeLike>;
 }
 
 interface ComponentLike {
@@ -80,14 +82,50 @@ function formatScalar(value: unknown): string {
 }
 
 /**
+ * Get a param's typed keyframe. Static params (our MOGRT's) have no keyframe
+ * at any *time*, so getKeyframePtr(TIME_ZERO) returns nothing (run #3 finding);
+ * getStartValue() is the defs' method for exactly this: "the start value
+ * (keyframe) of the component param" — companion of createSetValueAction.
+ */
+async function getTypedKeyframe(
+  param: ParamLike
+): Promise<{ keyframe: KeyframeLike; via: string } | null> {
+  try {
+    const fromStart = await param.getStartValue();
+    if (fromStart) {
+      return { keyframe: fromStart, via: "getStartValue" };
+    }
+  } catch {
+    // fall through
+  }
+  try {
+    const noArg = param.getKeyframePtr();
+    if (noArg) {
+      return { keyframe: noArg, via: "getKeyframePtr()" };
+    }
+  } catch {
+    // fall through
+  }
+  try {
+    const atZero = param.getKeyframePtr(ppro.TickTime.TIME_ZERO);
+    if (atZero) {
+      return { keyframe: atZero, via: "getKeyframePtr(TIME_ZERO)" };
+    }
+  } catch {
+    // fall through
+  }
+  return null;
+}
+
+/**
  * Read a param's inner value. getValueAtTime works for simple types; for
- * text/color params Premiere throws and instructs: "Use GetKeyframeAtTime to
- * get a keyframe object … the value can be extracted from the keyframe" —
- * i.e. getKeyframePtr → keyframe.value.value (confirmed live, 2026-07-02).
+ * text/color params Premiere throws and instructs going through a keyframe
+ * object instead (its error message names GetKeyframeAtTime; for static
+ * params the working door is getStartValue — run #3).
  */
 async function readParamInner(
   param: ParamLike
-): Promise<{ inner: unknown; via: "getValueAtTime" | "keyframe" }> {
+): Promise<{ inner: unknown; via: string }> {
   try {
     const raw = await param.getValueAtTime(ppro.TickTime.TIME_ZERO);
     const inner =
@@ -96,11 +134,13 @@ async function readParamInner(
         : raw;
     return { inner, via: "getValueAtTime" };
   } catch {
-    const keyframe = param.getKeyframePtr(ppro.TickTime.TIME_ZERO);
-    if (!keyframe) {
-      throw new Error("getValueAtTime unsupported and getKeyframePtr returned nothing");
+    const typed = await getTypedKeyframe(param);
+    if (!typed) {
+      throw new Error(
+        "getValueAtTime unsupported; getStartValue/getKeyframePtr returned nothing"
+      );
     }
-    return { inner: keyframe.value?.value, via: "keyframe" };
+    return { inner: typed.keyframe.value?.value, via: typed.via };
   }
 }
 
@@ -280,16 +320,12 @@ export async function roundTripLineText(): Promise<string> {
 
   const out: string[] = [];
 
-  // 1. Read the typed keyframe.
-  let keyframe: KeyframeLike | null | undefined;
-  try {
-    keyframe = match.param.getKeyframePtr(ppro.TickTime.TIME_ZERO);
-  } catch (err) {
-    return `getKeyframePtr threw: ${message(err)} — escalate.`;
+  // 1. Read the typed keyframe (getStartValue for static params — run #3).
+  const typed = await getTypedKeyframe(match.param);
+  if (!typed) {
+    return "no typed keyframe via getStartValue/getKeyframePtr — escalate.";
   }
-  if (!keyframe) {
-    return "getKeyframePtr returned nothing — escalate.";
-  }
+  const { keyframe, via } = typed;
   const inner = keyframe.value?.value;
   let innerJson: string;
   try {
@@ -297,7 +333,9 @@ export async function roundTripLineText(): Promise<string> {
   } catch {
     innerJson = String(inner);
   }
-  out.push(`1. keyframe read ✓ — inner value type: ${typeof inner}, value: ${innerJson}`);
+  out.push(
+    `1. keyframe read ✓ via ${via} — inner value type: ${typeof inner}, value: ${innerJson}`
+  );
 
   const writeKeyframe = (label: string): void => {
     txn.lockedAccess(() => {
