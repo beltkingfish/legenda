@@ -10,15 +10,26 @@ interface UxpFile {
   read(options?: { format?: symbol }): Promise<string | ArrayBuffer>;
 }
 
+interface UxpFolder {
+  getEntry(path: string): Promise<UxpFile>;
+  createFile(name: string, options?: { overwrite?: boolean }): Promise<
+    UxpFile & { write(data: ArrayBuffer, options?: { format?: symbol }): Promise<void> }
+  >;
+}
+
 interface UxpLocalFileSystem {
   getFileForOpening(options: {
     types?: string[];
     allowMultiple?: boolean;
   }): Promise<UxpFile | UxpFile[] | null | undefined>;
+  getPluginFolder(): Promise<UxpFolder>;
+  getTemporaryFolder(): Promise<UxpFolder>;
 }
 
-const { localFileSystem } = (
-  require("uxp") as { storage: { localFileSystem: UxpLocalFileSystem } }
+const { localFileSystem, formats } = (
+  require("uxp") as {
+    storage: { localFileSystem: UxpLocalFileSystem; formats: { binary: symbol } };
+  }
 ).storage;
 
 /** Open a picker for an .srt file; null when the user cancels. */
@@ -43,4 +54,30 @@ export async function pickMogrtFile(): Promise<{ name: string; path: string } | 
     return null;
   }
   return { name: file.name, path: file.nativePath };
+}
+
+/** Read a file shipped inside the plugin folder (e.g. the caption template). */
+export async function readPluginFile(relativePath: string): Promise<Uint8Array> {
+  const pluginFolder = await localFileSystem.getPluginFolder();
+  const entry = await pluginFolder.getEntry(relativePath);
+  const data = await entry.read({ format: formats.binary });
+  if (typeof data === "string") {
+    throw new Error(`Expected binary read for ${relativePath}`);
+  }
+  return new Uint8Array(data);
+}
+
+/**
+ * Write bytes to the UXP temporary folder (auto-cleaned when the plugin is
+ * disposed) and return the platform-native path for host APIs.
+ */
+export async function writeTempFile(name: string, bytes: Uint8Array): Promise<string> {
+  const temp = await localFileSystem.getTemporaryFolder();
+  const file = await temp.createFile(name, { overwrite: true });
+  const buffer = bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength
+  ) as ArrayBuffer;
+  await file.write(buffer, { format: formats.binary });
+  return file.nativePath;
 }

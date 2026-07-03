@@ -11,3 +11,12 @@ declare const console: {
   warn(...args: unknown[]): void;
   error(...args: unknown[]): void;
 };
+
+// UXP provides TextEncoder/TextDecoder at runtime; the defs omit them.
+declare class TextEncoder {
+  encode(input: string): Uint8Array;
+}
+declare class TextDecoder {
+  constructor(label?: string);
+  decode(input: ArrayBuffer | ArrayBufferView): string;
+}
