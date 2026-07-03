@@ -133,11 +133,18 @@ Last updated: 2026-07-02.
   user video/audio untouched. Confirms: per-line patch+insert loop works at real
   scale; `createSetEndAction` is sequence-time based.
 
+- 2026-07-02 — Performance confirmed: the 85-line generate (85 patched temp files +
+  inserts + trims + scales) completes near-instantly. No optimization needed.
+- 2026-07-02 — **Clear bug found & fixed**: using the selection outside
+  `TrackItemSelection.createEmptySelection`'s callback → "The script object is no
+  longer valid" — the selection object's lifetime is scoped to the callback. All
+  selection work (addItem + remove action + transaction) now runs inside the
+  callback under one lock. (Now a discovered-limitations entry.)
+
 ## In progress
-- Remaining live checks: **Generate again** (exercises clearPluginTrack /
-  `createEmptySelection`'s sync-callback assumption — should report "cleared 85
-  previous") and the **Clear captions** button; play through several captions to
-  confirm each fade plays; note roughly how long the 85-insert generate took.
+- Remaining live checks after the fix: **Clear captions**, then **Generate again**
+  on existing captions (should report "cleared 85 previous"); play through several
+  captions to confirm each fade plays.
 
 ## Next (Phase 1 build order)
 8. Style panel (Clean/Bold/Minimal) + global "apply to all" (style params via the
@@ -338,6 +345,9 @@ Last updated: 2026-07-02.
   (`meta.skippedTokens`) instead of failing the import.
 - Premiere's UXP runtime has NO `TextEncoder`/`TextDecoder` globals (confirmed live:
   "TextDecoder is not defined"). Use fflate's `strToU8`/`strFromU8` for UTF-8.
+- Callback-style host APIs (`TrackItemSelection.createEmptySelection`) scope the
+  provided object's validity to the callback — using it afterwards throws "The
+  script object is no longer valid". Do all work inside the callback.
   Nuance for the defs-gap list above: cc-ext-uxp-types omissions are sometimes
   accurate about the runtime (this case) and sometimes not (`require`, `console`,
   `classList`) — verify live before declaring a global in globals.d.ts.

@@ -90,30 +90,36 @@ async function clearPluginTrack(
     return 0;
   }
 
-  let selection: { addItem(item: unknown, skipDup?: boolean): boolean } | null = null;
-  ppro.TrackItemSelection.createEmptySelection((created: unknown) => {
-    selection = created as typeof selection;
-  });
-  if (!selection) {
-    throw new Error("Could not create a track item selection for cleanup.");
-  }
-  const captured = selection as { addItem(item: unknown, skipDup?: boolean): boolean };
-  for (const item of items) {
-    captured.addItem(item, true);
-  }
-
   const editor = ppro.SequenceEditor.getEditor(
     sequence as Parameters<typeof ppro.SequenceEditor.getEditor>[0]
-  );
+  ) as unknown as {
+    createRemoveItemsAction(sel: unknown, ripple: boolean, mediaType: unknown): unknown;
+  };
+
+  // The selection object is only valid INSIDE createEmptySelection's callback
+  // (confirmed live: using it afterwards → "The script object is no longer
+  // valid."). Do everything — addItem, action, transaction — in the callback,
+  // under one lock.
+  let ran = false;
   project.lockedAccess(() => {
-    project.executeTransaction((ca) => {
-      ca.addAction(
-        (editor as unknown as {
-          createRemoveItemsAction(sel: unknown, ripple: boolean, mediaType: unknown): unknown;
-        }).createRemoveItemsAction(captured, false, ppro.Constants.MediaType.VIDEO)
-      );
-    }, "Legenda: clear captions");
+    ppro.TrackItemSelection.createEmptySelection((created: unknown) => {
+      const selection = created as { addItem(item: unknown, skipDup?: boolean): boolean };
+      for (const item of items) {
+        selection.addItem(item, true);
+      }
+      project.executeTransaction((ca) => {
+        ca.addAction(
+          editor.createRemoveItemsAction(selection, false, ppro.Constants.MediaType.VIDEO)
+        );
+      }, "Legenda: clear captions");
+      ran = true;
+    });
   });
+  if (!ran) {
+    throw new Error(
+      "createEmptySelection did not run its callback synchronously — report this."
+    );
+  }
   return items.length;
 }
 
