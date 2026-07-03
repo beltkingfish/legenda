@@ -222,13 +222,24 @@ Last updated: 2026-07-02.
 - **Run #3 (2026-07-02): `getKeyframePtr(TIME_ZERO)` returns NOTHING for the static
   text/color params** — they have no keyframe at any *time* (not time-varying), so
   the "at time" door is the wrong one. Numbers/boolean still read via getValueAtTime.
-- **Probes upgraded (awaiting run #4):** typed-keyframe resolution now tries
-  `getStartValue()` first (defs: "the start value (keyframe) of the component
-  param" — the natural companion of createSetValueAction for static params), then
-  `getKeyframePtr()` with no arg, then with TIME_ZERO; every reader and the
-  round-trip use it and report which door worked. If the round-trip prints "TEXT
-  WRITE PATH PROVEN ✓", step 7 is fully unblocked. Maintainer: reload, select the
-  MOGRT, run "Read all param values" + "Round-trip Line Text", paste both.
+- **Run #4 (2026-07-02): split verdict.** COLORS: `getStartValue()` returns a
+  keyframe ✓ but our `keyframe.value.value` extraction found `undefined` — value is
+  behind a different shape (host getters / possibly `keyframe.value` IS the Color).
+  TEXT: all three doors empty (`getStartValue`, `getKeyframePtr()` bare and with
+  TIME_ZERO) — text params differ in kind, not just shape.
+- **Probes upgraded (awaiting run #5): forensic inspector.** For any param that
+  fails the simple read: per-door outcome (thrown-with-message vs returned-falsy,
+  separately), `isTimeVarying` + `areKeyframesSupported`, and a deep dump of any
+  obtained keyframe — own AND prototype property names (host objects hide fields
+  behind non-enumerable getters), `.value` shape, and probes of likely fields
+  (`.value.value`, color channels, `.text`). Output pinpoints where color values
+  live and whether text is API-reachable at all.
+- **Contingency sketch (only if text proves API-unreachable):** per-line .mogrt
+  patching — a .mogrt is a zip whose definition JSON carries capsule param
+  DEFAULTS incl. source text; plugin writes a patched copy per line and inserts
+  that, style params still set via API. Costs a small zip dep (e.g. fflate) +
+  temp-file churn; regeneration-over-mutation model absorbs it. NOT designing this
+  until the forensic run says text is closed.
 
 ## Discovered API limitations (append as found)
 - Caption-track text read/write: not available (as of research date).

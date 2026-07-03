@@ -24,6 +24,7 @@ interface KeyframeLike {
 interface ParamLike {
   displayName: string;
   isTimeVarying(): boolean;
+  areKeyframesSupported(): Promise<boolean>;
   createKeyframe(value: ParamValue): unknown;
   createSetTimeVaryingAction(timeVarying: boolean): unknown;
   createSetValueAction(keyframe: unknown, safeForPlayback?: boolean): unknown;
@@ -31,6 +32,54 @@ interface ParamLike {
   getKeyframePtr(time?: unknown): KeyframeLike | null | undefined;
   /** Static-value keyframe — the companion of createSetValueAction. */
   getStartValue(): Promise<KeyframeLike>;
+}
+
+/** Own + prototype property names (host objects hide fields behind getters). */
+function allKeys(obj: unknown): string[] {
+  if (!obj || (typeof obj !== "object" && typeof obj !== "function")) {
+    return [];
+  }
+  const keys = new Set<string>(Object.getOwnPropertyNames(obj));
+  const proto = Object.getPrototypeOf(obj) as object | null;
+  if (proto && proto !== Object.prototype) {
+    for (const key of Object.getOwnPropertyNames(proto)) {
+      if (key !== "constructor") {
+        keys.add(key);
+      }
+    }
+  }
+  return [...keys];
+}
+
+function tryGet(obj: unknown, key: string): unknown {
+  try {
+    return (obj as Record<string, unknown>)[key];
+  } catch {
+    return "(getter threw)";
+  }
+}
+
+/** Deep-describe a keyframe host object: keys, value shape, likely fields. */
+function describeKeyframeDeep(keyframe: KeyframeLike, out: string[]): void {
+  out.push(`      keyframe keys: [${allKeys(keyframe).join(", ")}]`);
+  const value = tryGet(keyframe, "value");
+  out.push(`      .value: ${typeof value}, keys [${allKeys(value).join(", ")}]`);
+  for (const path of ["value", "red", "green", "blue", "alpha", "text"]) {
+    const nested = value && typeof value === "object" ? tryGet(value, path) : undefined;
+    if (nested !== undefined) {
+      out.push(`      .value.${path}: ${formatScalar(nested)}`);
+    }
+  }
+  const inner = value && typeof value === "object" ? tryGet(value, "value") : undefined;
+  if (inner && typeof inner === "object") {
+    out.push(`      .value.value keys: [${allKeys(inner).join(", ")}]`);
+    for (const path of ["red", "green", "blue", "alpha", "text"]) {
+      const nested = tryGet(inner, path);
+      if (nested !== undefined) {
+        out.push(`      .value.value.${path}: ${formatScalar(nested)}`);
+      }
+    }
+  }
 }
 
 interface ComponentLike {
@@ -273,17 +322,49 @@ export async function inspectCapsuleValues(): Promise<string> {
   const out: string[] = ["current capsule param values (name → raw shape):", ""];
   for (const { param, name } of params) {
     const label = name === "" ? "(empty displayName)" : name;
+
+    // Simple path first.
     try {
-      const { inner, via } = await readParamInner(param);
-      let raw: string;
-      try {
-        raw = JSON.stringify(inner);
-      } catch {
-        raw = String(inner);
-      }
-      out.push(`• ${label}: ${formatScalar(inner)}  [raw: ${raw}] (via ${via})`);
+      const raw = await param.getValueAtTime(ppro.TickTime.TIME_ZERO);
+      const inner =
+        raw && typeof raw === "object" && "value" in raw
+          ? (raw as { value: unknown }).value
+          : raw;
+      out.push(`• ${label}: ${formatScalar(inner)} (via getValueAtTime)`);
+      continue;
+    } catch {
+      out.push(`• ${label}: getValueAtTime unsupported — door-by-door forensics:`);
+    }
+
+    try {
+      out.push(`      isTimeVarying: ${param.isTimeVarying()}`);
     } catch (err) {
-      out.push(`• ${label}: read threw — ${message(err)}`);
+      out.push(`      isTimeVarying threw: ${message(err)}`);
+    }
+    try {
+      out.push(`      areKeyframesSupported: ${await param.areKeyframesSupported()}`);
+    } catch (err) {
+      out.push(`      areKeyframesSupported threw: ${message(err)}`);
+    }
+
+    const doors: [string, () => Promise<unknown> | unknown][] = [
+      ["getStartValue()", () => param.getStartValue()],
+      ["getKeyframePtr()", () => param.getKeyframePtr()],
+      ["getKeyframePtr(TIME_ZERO)", () => param.getKeyframePtr(ppro.TickTime.TIME_ZERO)],
+    ];
+    for (const [doorName, open] of doors) {
+      try {
+        const result = await open();
+        if (!result) {
+          out.push(`      ${doorName}: returned ${String(result)}`);
+          continue;
+        }
+        out.push(`      ${doorName}: keyframe ✓`);
+        describeKeyframeDeep(result as KeyframeLike, out);
+        break; // one deep dump is enough
+      } catch (err) {
+        out.push(`      ${doorName}: threw — ${message(err)}`);
+      }
     }
   }
   const report = out.join("\n");
