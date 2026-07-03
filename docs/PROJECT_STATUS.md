@@ -235,12 +235,15 @@ Last updated: 2026-07-03.
 - (none)
 
 ## Next (Phase 1 build order)
-8. Style panel (Clean/Bold/Minimal) + global "apply to all" (style params via the
-   verified ComponentParam write path after the capsule populates).
-9. Timing panel with non-blocking WCAG warnings.
-10. Line-level color/italic override.
-- Then: teleprompter template (MOGRT_SPEC strategies), custom track auto-creation,
-  clip-offset time base.
+10. Line-level color/italic override (color: per-line patch value; italic:
+    fonteditinfo `fontFSItalicValue` — may need a template re-export with
+    faux styles enabled, `capPropFontFauxStyleEdit` is currently false).
+- Then, to complete Phase 1: teleprompter template (MOGRT_SPEC strategies) and
+  template v2 exposures (transition ramp, line height, letter spacing,
+  alignment, outline). Also queued: custom track auto-creation, clip-offset
+  time base, Adobe escalation (text API + UXP crash package).
+- Side quests / unproven ideas live in `docs/EXPERIMENTS.md` (currently:
+  EXP-001 curve-easing spike).
 
 ## Decisions log
 - 2026-07-02: Target UXP (not CEP/ExtendScript). Render via MOGRT (not scripted keyframes).
