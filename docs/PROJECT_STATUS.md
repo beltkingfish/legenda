@@ -210,15 +210,22 @@ Last updated: 2026-07-02.
   - Confirmed via grep: no text-specific value type or setter in the defs (only
     transcript `TextSegments`) — source text goes through the generic
     createKeyframe/createSetValueAction path with the correct value structure.
-- **Two diagnostics shipped (awaiting one live run, run both in the same session):**
-  - "Read all param values" (`inspectCapsuleValues`, read-only): each capsule param's
-    CURRENT value + raw outer JSON. `Line Text`'s native shape shows what
-    createKeyframe wants; color params' numbers reveal 0–1 vs 0–255.
-  - "Round-trip Line Text" (`roundTripLineText`): reads Line Text's native value and
-    writes it back UNCHANGED. Success ⇒ mechanism is read-modify-write (then the raw
-    JSON shows the text field to swap); failure with a plain-string inner ⇒ read/write
-    asymmetric, escalate. Decisive.
-  - Maintainer: select the authored (unmodified) MOGRT, run both, paste both reports.
+- **Diagnostics run #2 (2026-07-02) — Premiere's error message IS the documentation:**
+  `getValueAtTime` throws for text/color params with "getValueAtTime is not supported
+  for these value types. Use GetKeyframeAtTime to get a keyframe object at time. The
+  value can be extracted from the keyframe object." ⇒ text/color are read via
+  `getKeyframePtr(time)` → `keyframe.value.value`, and (hypothesis, matching why
+  `createKeyframe(string)` threw) written by MUTATING the typed keyframe's
+  `value.value` and passing it to `createSetValueAction`. Also learned: the unnamed
+  checkbox param reads as plain `boolean` (outer `{"value":true}`); number params
+  read fine via getValueAtTime; the earlier `Background Opacity` write persisted.
+- **Probes upgraded to the keyframe path (awaiting live run #3):** inspector +
+  write-test readback now fall back to `getKeyframePtr`; "Round-trip Line Text" is
+  now the full five-step recipe test — read keyframe → write back unchanged →
+  mutate `value.value` to test text → write → re-read. If it prints "TEXT WRITE
+  PATH PROVEN ✓", the step-7 renderer is fully unblocked. Maintainer: reload,
+  select the MOGRT clip, run "Read all param values" (color range) and
+  "Round-trip Line Text", paste both.
 
 ## Discovered API limitations (append as found)
 - Caption-track text read/write: not available (as of research date).

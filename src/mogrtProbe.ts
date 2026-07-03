@@ -16,6 +16,11 @@ import { getActiveContext } from "./premiere";
 
 type ParamValue = string | number | boolean | object;
 
+interface KeyframeLike {
+  value: { value: unknown };
+  position: unknown;
+}
+
 interface ParamLike {
   displayName: string;
   isTimeVarying(): boolean;
@@ -23,6 +28,7 @@ interface ParamLike {
   createSetTimeVaryingAction(timeVarying: boolean): unknown;
   createSetValueAction(keyframe: unknown, safeForPlayback?: boolean): unknown;
   getValueAtTime(time: unknown): Promise<unknown>;
+  getKeyframePtr(time?: unknown): KeyframeLike | null | undefined;
 }
 
 interface ComponentLike {
@@ -73,12 +79,29 @@ function formatScalar(value: unknown): string {
   return `${typeof value}:${String(value)}`;
 }
 
-/** getValueAtTime returns a `{ value: X }` wrapper — unwrap one level. */
-function describeValue(value: unknown): string {
-  if (value && typeof value === "object" && "value" in value) {
-    return formatScalar((value as { value: unknown }).value);
+/**
+ * Read a param's inner value. getValueAtTime works for simple types; for
+ * text/color params Premiere throws and instructs: "Use GetKeyframeAtTime to
+ * get a keyframe object … the value can be extracted from the keyframe" —
+ * i.e. getKeyframePtr → keyframe.value.value (confirmed live, 2026-07-02).
+ */
+async function readParamInner(
+  param: ParamLike
+): Promise<{ inner: unknown; via: "getValueAtTime" | "keyframe" }> {
+  try {
+    const raw = await param.getValueAtTime(ppro.TickTime.TIME_ZERO);
+    const inner =
+      raw && typeof raw === "object" && "value" in raw
+        ? (raw as { value: unknown }).value
+        : raw;
+    return { inner, via: "getValueAtTime" };
+  } catch {
+    const keyframe = param.getKeyframePtr(ppro.TickTime.TIME_ZERO);
+    if (!keyframe) {
+      throw new Error("getValueAtTime unsupported and getKeyframePtr returned nothing");
+    }
+    return { inner: keyframe.value?.value, via: "keyframe" };
   }
-  return formatScalar(value);
 }
 
 /** Shared chain dump for one track item; appends findings to `out`. */
@@ -211,15 +234,14 @@ export async function inspectCapsuleValues(): Promise<string> {
   for (const { param, name } of params) {
     const label = name === "" ? "(empty displayName)" : name;
     try {
-      const raw = await param.getValueAtTime(ppro.TickTime.TIME_ZERO);
-      // Show the outer wrapper too, so nested/rich-text shapes are visible.
-      let outer: string;
+      const { inner, via } = await readParamInner(param);
+      let raw: string;
       try {
-        outer = JSON.stringify(raw);
+        raw = JSON.stringify(inner);
       } catch {
-        outer = String(raw);
+        raw = String(inner);
       }
-      out.push(`• ${label}: ${describeValue(raw)}  [outer: ${outer}]`);
+      out.push(`• ${label}: ${formatScalar(inner)}  [raw: ${raw}] (via ${via})`);
     } catch (err) {
       out.push(`• ${label}: read threw — ${message(err)}`);
     }
@@ -230,14 +252,14 @@ export async function inspectCapsuleValues(): Promise<string> {
 }
 
 /**
- * Decisive text-write diagnostic: read `Line Text`'s CURRENT native value and
- * write that exact value straight back, unchanged. Discriminates:
- *  - round-trip succeeds → mechanism is read-native / swap-text / write-back
- *    (the inspector's raw JSON shows where the string lives). A bare JS string
- *    was simply the wrong type for a source-text param.
- *  - round-trip fails "Illegal Parameter type" with a plain-string inner value →
- *    read/write are asymmetric; this API path won't take text writes → escalate.
- *  - read throws → text not readable here → escalate.
+ * Full text-write recipe test, per Premiere's own error-message guidance
+ * ("Use GetKeyframeAtTime … the value can be extracted from the keyframe"):
+ *   1. kf = getKeyframePtr(TIME_ZERO)          — read the typed keyframe
+ *   2. createSetValueAction(kf) unchanged      — prove the write channel
+ *   3. mutate kf.value.value = test string     — swap text inside the keyframe
+ *   4. createSetValueAction(kf) again          — write the new text
+ *   5. re-read via getKeyframePtr              — verify it stuck
+ * If all five hold, the renderer's text path is solved.
  */
 export async function roundTripLineText(): Promise<string> {
   const { project, sequence } = await getActiveContext();
@@ -257,50 +279,79 @@ export async function roundTripLineText(): Promise<string> {
   }
 
   const out: string[] = [];
-  let native: unknown;
+
+  // 1. Read the typed keyframe.
+  let keyframe: KeyframeLike | null | undefined;
   try {
-    native = await match.param.getValueAtTime(ppro.TickTime.TIME_ZERO);
+    keyframe = match.param.getKeyframePtr(ppro.TickTime.TIME_ZERO);
   } catch (err) {
-    return `read threw — text is not readable here: ${message(err)}`;
+    return `getKeyframePtr threw: ${message(err)} — escalate.`;
   }
-  // getValueAtTime returns a { value: X } wrapper; createKeyframe wants X.
-  const inner =
-    native && typeof native === "object" && "value" in native
-      ? (native as { value: unknown }).value
-      : native;
+  if (!keyframe) {
+    return "getKeyframePtr returned nothing — escalate.";
+  }
+  const inner = keyframe.value?.value;
   let innerJson: string;
   try {
     innerJson = JSON.stringify(inner);
   } catch {
     innerJson = String(inner);
   }
-  out.push(`Line Text native value type: ${typeof inner}`);
-  out.push(`Line Text native value: ${innerJson}`);
-  out.push("");
+  out.push(`1. keyframe read ✓ — inner value type: ${typeof inner}, value: ${innerJson}`);
 
-  try {
+  const writeKeyframe = (label: string): void => {
     txn.lockedAccess(() => {
-      if (match.param.isTimeVarying()) {
-        txn.executeTransaction(
-          (ca) => ca.addAction(match.param.createSetTimeVaryingAction(false)),
-          "Legenda: Line Text static"
-        );
-      }
-      const keyframe = match.param.createKeyframe(inner as ParamValue);
       txn.executeTransaction(
         (ca) => ca.addAction(match.param.createSetValueAction(keyframe, true)),
-        "Legenda: round-trip Line Text"
+        label
       );
     });
-    out.push("round-trip write of the unchanged native value: SUCCEEDED ✓");
-    out.push("→ mechanism is read-native, swap the text field, write back.");
+  };
+
+  // 2. Write the unchanged keyframe back — proves the channel.
+  try {
+    writeKeyframe("Legenda: Line Text write-back");
+    out.push("2. write-back of unchanged keyframe ✓");
   } catch (err) {
-    out.push(`round-trip write FAILED — ${message(err)}`);
+    out.push(`2. write-back FAILED — ${message(err)} → escalate.`);
+    const report = out.join("\n");
+    console.log(report);
+    return report;
+  }
+
+  // 3–4. Swap the text inside the keyframe and write again.
+  if (typeof inner !== "string") {
     out.push(
-      typeof inner === "string"
-        ? "→ inner is a plain string yet the write is rejected: read/write asymmetric — escalate."
-        : "→ createKeyframe rejects even the native structure — escalate."
+      `3. inner value is ${typeof inner}, not string — see raw shape above; ` +
+        "text lives deeper in the structure. Paste this report back for analysis."
     );
+    const report = out.join("\n");
+    console.log(report);
+    return report;
+  }
+  try {
+    keyframe.value.value = "LEGENDA SET ✓";
+    writeKeyframe("Legenda: Line Text set test");
+    out.push("3–4. mutated keyframe text and wrote it ✓");
+  } catch (err) {
+    out.push(`3–4. mutated write FAILED — ${message(err)}`);
+    const report = out.join("\n");
+    console.log(report);
+    return report;
+  }
+
+  // 5. Verify.
+  try {
+    const after = match.param.getKeyframePtr(ppro.TickTime.TIME_ZERO);
+    out.push(`5. re-read: "${String(after?.value?.value)}"`);
+    out.push("");
+    out.push(
+      String(after?.value?.value) === "LEGENDA SET ✓"
+        ? "TEXT WRITE PATH PROVEN ✓ — check the Program monitor too."
+        : "Write reported success but re-read differs — check the Program monitor."
+    );
+  } catch (err) {
+    out.push(`5. re-read threw: ${message(err)} — check the Program monitor visually.`);
   }
 
   const report = out.join("\n");
@@ -365,7 +416,8 @@ export async function writeTestOnSelection(): Promise<string> {
       });
       let readback: string;
       try {
-        readback = describeValue(await match.param.getValueAtTime(ppro.TickTime.TIME_ZERO));
+        const { inner, via } = await readParamInner(match.param);
+        readback = `${formatScalar(inner)} (via ${via})`;
       } catch (readErr) {
         readback = `(read threw: ${message(readErr)})`;
       }
