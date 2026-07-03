@@ -122,13 +122,27 @@ scope call, update SPECIFICATION.md if taken).
 - `insertMogrtFromPath` **rejects out-of-range track indices** ("Invalid
   parameter."); it does NOT auto-create a track (open question #1 = no).
 
+## Value read/write recipes (all confirmed live, 2026-07-02)
+- **Numbers**: read `getValueAtTime` (returns `{value:N}` wrapper); write
+  `createKeyframe(n)` + `createSetValueAction` in the transaction idiom.
+- **Colors**: read `getStartValue()` — returns the `Color` object ITSELF
+  (`red/green/blue/alpha`, **0–1 floats**; alpha semantics unclear, reads 1/255);
+  write `createKeyframe(ppro.Color(r,g,b,a))` + `createSetValueAction`.
+- **Booleans (checkboxes)**: readable via `getValueAtTime`, but the param's
+  displayName is EMPTY — unmatchable; do not expose checkboxes (see Tier 1 note).
+- **TEXT: not reachable via ComponentParam** (`areKeyframesSupported: false`,
+  every read door null). **Recipe: per-line template patching** — rewrite
+  `definition.json` inside the .mogrt zip: set the text in the `clientControls[]`
+  value AND `sourceInfoLocalized.<locale>.capsuleparams.capParams[]`
+  (`capPropDefault` + `textEditValue`), give each variant a fresh `capsuleID`,
+  re-zip, `insertMogrtFromPath`. Confirmed: JSON-only patch changes the render;
+  the embedded AE project does not need touching.
+- **Scale-to-sequence**: intrinsic `AE.ADBE Motion` → `Scale` (number write) =
+  `sequence.getFrameSize().height / 2160 × 100`, applied right after insert.
+
 ## Open questions still to answer
-1. **Set a Capsule param**: read a `ComponentParam` from the Capsule by matching
-   `displayName`, then `createSetValueAction(createKeyframe(value))` for text/
-   color/number — confirm each type writes. (This is the last unknown before the
-   renderer; prototype next.)
-2. Plugin-owned track creation without auto-create: check defs for a track-add
+1. Plugin-owned track creation without auto-create: check defs for a track-add
    action, or use `createInsertProjectItemAction`'s documented auto-create, or
    insert on the topmost existing track and manage index bookkeeping.
-3. Downscale sharpness: insert the UHD template into both a UHD and a 1080
-   sequence (scaled to fit) and confirm text renders crisply in each.
+2. Downscale sharpness at typical viewing sizes (informally looked fine at 50%
+   and 30.8%; eyeball once more during step-7 verification).

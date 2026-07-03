@@ -291,11 +291,21 @@ Last updated: 2026-07-02.
 - Environment eliminations weren't wasted: they proved the source had to be inside
   the file. `mogrt_build.aep.bak` can be restored to `mogrt_build.aep` (and should
   be committed — it's the template's source).
-- **PT4/PT5 built and byte-verified** (originals scrubbed in utf-8/16/32 checks):
-  PT4 = definition.json fully patched (all 3 string fields), aep original —
-  discriminates whether JSON alone drives the render (best case: the plugin's
-  runtime patcher only needs outer-zip JSON edits, no RIFX/inner-zip surgery).
-  PT5 = JSON + aep both patched — the fallback if PT4 alone doesn't flip.
+- **RESOLVED (run #8, 2026-07-02): PT4 renders the patched text.** JSON-only
+  patching drives the render — the runtime patcher needs exactly one edit:
+  `definition.json` inside the outer zip (three string fields: the
+  `clientControls[]` value + `capsuleparams.capParams[]` `capPropDefault` and
+  `textEditValue`; plus a fresh `capsuleID`/name per variant). No RIFX or
+  inner-zip surgery. Premiere's Properties panel shows the full param set on the
+  inserted instance working per spec (Line Text editable, Font/Font Size from the
+  Tier-2 exposure, colors, opacities, Legenda Version).
+- **Step-6 verified capability matrix — COMPLETE:** insert ✓ · lazy-capsule
+  polling ✓ · param discovery by displayName ✓ · number write ✓ · color
+  read/write (0–1 floats) ✓ · auto-scale to sequence via getFrameSize ✓ ·
+  per-line text via definition.json patching ✓. Nothing about the renderer
+  remains unverified.
+- Transcript parser fix verified live on real footage: 501 words · 85 lines ·
+  10 malformed tokens skipped.
 - `getFrameSize()` vindicated: read 3840×2160 and 1920×1080 correctly on the two
   new sequences (the earlier 1182×665 was that sequence's real size).
 
