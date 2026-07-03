@@ -2,10 +2,10 @@
 
 Update this at the end of any session with meaningful changes (see CLAUDE.md → Update ritual).
 
-Current phase: **Phase 2 — step 1 (per-word emphasis) verified live; step 3
-(custom style save/load) built, awaiting live verify. Step 2 (per-word color)
-gated on the AE recolor experiment. Phase 1 close items still open:
-teleprompter template + template v2 authoring.**
+Current phase: **Phase 2 — steps 1 (per-word emphasis) and 3 (custom styles)
+done and verified live. Step 2 (per-word color) gated on the AE recolor
+experiment. Phase 1 close items still open: teleprompter template +
+template v2 authoring.**
 Last updated: 2026-07-03.
 
 ## Done
@@ -311,11 +311,15 @@ Last updated: 2026-07-03.
   exists) loads into the working controls; Delete uses confirm-once. Editing
   any control deselects the loaded style (working style diverged). 95 tests.
 
+- 2026-07-03 — **Step 3 verified live, full loop**: style "orioles" saved →
+  plugin stopped + reloaded in UDT → style still listed → loaded → cleared +
+  regenerated → renders the saved look (orange bar, 80% opacity). **Platform
+  gate passed: `getDataFolder()` write/read works in Premiere's UXP runtime**
+  — persistent plugin-level storage is now a proven capability (also
+  de-risks step 4 export/import, which uses the same file shape).
+
 ## In progress
-- **Step 3 live checks**: (a) `getDataFolder()` write/read works in Premiere's
-  UXP runtime (verified in defs, never exercised live); (b) save → restart
-  plugin → the style is still listed; (c) load → Apply to all renders the saved
-  look; (d) delete confirm-once. The data folder is the only platform unknown.
+- (none)
 
 ## Next (Phase 2 build order)
 1. ~~Per-word italic emphasis~~ — done, verified live.
@@ -324,7 +328,8 @@ Last updated: 2026-07-03.
    If the exporter emits a per-run color field → wire it like italic. If not →
    the patch route is closed; spec-first decision (descope per-word color to the
    Properties-panel finishing pass, or template redesign).
-3. Custom style save/load — built; live verify pending (see In progress).
+3. ~~Custom style save/load~~ — done, verified live (incl. persistence across
+   plugin restart).
 4. Style export/import — JSON file, presets schema + version field
    (SPECIFICATION §10).
 5. Additional animations/presets — after the Phase 1 close items: teleprompter
