@@ -279,19 +279,23 @@ Last updated: 2026-07-02.
     patch RIFX (same-length swap works; variable-length needs chunk rewriting);
     both default ⇒ patching route closed → escalate to Adobe, Phase 1 rethink.
 
-## Step 6 continued — patching investigation status (2026-07-02, evening)
-- Fresh project + purged media cache + fully patched PT3 (JSON + every plaintext
-  byte of the text, incl. the real btdk text document) STILL renders the original
-  text. No zlib-compressed copies exist in the .aep (scanned). Labels update from
-  definition.json; the visual does not.
-- **Prime remaining suspect**: render resolves to the AUTHORING PROJECT present on
-  this machine (`mogrt_build.aep` at repo root / possibly a running AE instance) —
-  dynamic-link-style source preference. **Test**: quit AE, rename mogrt_build.aep,
-  re-insert PT3. If text flips, it's a dev-machine artifact only (end users lack
-  the source project) and patching is viable.
-- If that test fails too: escalate to Adobe (forum + feature request, minimal
-  repro ready) and proceed with renderer work that doesn't need text (timing,
-  track management, style params) while the text path waits.
+## Step 6 — text-patching ROOT CAUSE FOUND (2026-07-02, late evening)
+- After reboot + cache purge + renaming the authoring .aep all failed to change the
+  render, a byte-level audit of the PT3 artifact found the answer: **PT3's
+  definition.json still contained the original text** in a structure the patch
+  never walked — `sourceInfoLocalized.<locale>.capsuleparams.capParams[]`, fields
+  **`capPropDefault` and `textEditValue`** (the ExtendScript-era field name for
+  MOGRT text values). Every environmental theory (extraction cache, dynamic-link
+  to the authoring project, RIFX internals) was wrong; the patch was incomplete.
+  PT1–PT3 results are all explained by these two unpatched fields.
+- Environment eliminations weren't wasted: they proved the source had to be inside
+  the file. `mogrt_build.aep.bak` can be restored to `mogrt_build.aep` (and should
+  be committed — it's the template's source).
+- **PT4/PT5 built and byte-verified** (originals scrubbed in utf-8/16/32 checks):
+  PT4 = definition.json fully patched (all 3 string fields), aep original —
+  discriminates whether JSON alone drives the render (best case: the plugin's
+  runtime patcher only needs outer-zip JSON edits, no RIFX/inner-zip surgery).
+  PT5 = JSON + aep both patched — the fallback if PT4 alone doesn't flip.
 - `getFrameSize()` vindicated: read 3840×2160 and 1920×1080 correctly on the two
   new sequences (the earlier 1182×665 was that sequence's real size).
 
