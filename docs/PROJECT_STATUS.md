@@ -258,10 +258,26 @@ Last updated: 2026-07-02.
   (Motion → Scale = frameHeight/2160 × 100 via the proven number path).
   **Pending re-check**: manual Scale=50 on the existing PATCHTEST clip, or re-insert
   after reload — confirm "PATCHED BY LEGENDA OK" renders.
-- **Maintainer decision needed (architecture change):** adopt per-line .mogrt
-  patching for caption text (API still drives colors/numbers) vs waiting on Adobe.
-  If adopted: ARCHITECTURE §3 + SPECIFICATION get updated first, per CLAUDE.md.
-  Escalation to Adobe (forum + feature request) recommended in parallel either way.
+- **Run #7 (2026-07-02): Scale=50 confirmed the UHD pipeline** — caption renders
+  crisp in the lower third. But it shows the AUTHORED default ("Line text goes
+  here"), not the PATCHTEST string — either that clip came from the original file,
+  or definition.json isn't what the renderer reads, or Premiere deduped by
+  capsuleID (PATCHTEST kept the original's ID). **Structure finding**:
+  `project.aegraphic` is a nested zip holding the full AE project
+  (`mogrt_build.aep`, RIFX binary); the text default lives THERE (6× utf-8, 1×
+  utf-16be occurrences) — definition.json may be EG-panel metadata only.
+- **Experiment matrix built (PT2/PT3, gitignored):**
+  - `…-PATCHTEST2.mogrt`: JSON text patched + FRESH capsuleID + name "…PT2"
+    (controls the dedupe variable; tests whether definition.json drives render).
+  - `…-PATCHTEST3.mogrt`: same as PT2 PLUS same-length byte-swap of the text in
+    the binary .aep ("LEGENDA AEP PATCHED", RIFX chunk sizes preserved) + name
+    "…PT3".
+  - Insert BOTH via the probe (auto-scales now); the label+text combination
+    observed decides the text-patching mechanism:
+    PT2 patched-text ⇒ JSON drives render (dedupe was the earlier issue);
+    PT2 default + PT3 patched ⇒ renderer reads the .aep → contingency must
+    patch RIFX (same-length swap works; variable-length needs chunk rewriting);
+    both default ⇒ patching route closed → escalate to Adobe, Phase 1 rethink.
 
 ## Discovered API limitations (append as found)
 - Caption-track text read/write: not available (as of research date).
