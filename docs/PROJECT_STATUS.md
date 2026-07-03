@@ -2,7 +2,7 @@
 
 Update this at the end of any session with meaningful changes (see CLAUDE.md → Update ritual).
 
-Current phase: **Phase 1 — step 9 built; awaiting live check. Then step 10 (overrides).**
+Current phase: **Phase 1 — steps 1–9 done and verified live. Next: step 10 (overrides).**
 Last updated: 2026-07-03.
 
 ## Done
@@ -228,9 +228,11 @@ Last updated: 2026-07-03.
   (fixed ≈150ms authored fade; disclosed under the field) — it starts driving the
   animation when template v2 exposes the ramp.
 
+- 2026-07-03 — **Step 9 verified live** after the action-scoping fix: full generate
+  completes again; timing warnings show exact copy and never block; settings apply.
+
 ## In progress
-- Manual re-check: Clear → Generate → all 38 captions insert; min display 0.8 →
-  warning + short captions extend; gap 400 → flicker warning; max 3 → live re-wrap.
+- (none)
 
 ## Next (Phase 1 build order)
 8. Style panel (Clean/Bold/Minimal) + global "apply to all" (style params via the
