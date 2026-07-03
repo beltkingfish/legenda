@@ -235,18 +235,20 @@ export async function generateCaptions(
       throw new Error(`Motion → Scale param not found on caption ${i + 1}`);
     }
     txn.lockedAccess(() => {
-      const actions: unknown[] = [
-        item.createSetEndAction(ppro.TickTime.createWithTicks(line.endTicks)),
-      ];
-      if (scaleParam.param.isTimeVarying()) {
-        actions.push(scaleParam.param.createSetTimeVaryingAction(false));
-      }
+      // Keyframes may be created outside the transaction callback; ACTIONS
+      // may not — like createEmptySelection's selection, an Action is scoped
+      // to the callback that consumes it ("The script object is no longer
+      // valid" mid-generate, found live 2026-07-03).
       const keyframe = scaleParam.param.createKeyframe(scalePct);
-      actions.push(scaleParam.param.createSetValueAction(keyframe, true));
+      const timeVarying = scaleParam.param.isTimeVarying();
       txn.executeTransaction((ca) => {
-        for (const action of actions) {
-          ca.addAction(action);
+        ca.addAction(
+          item.createSetEndAction(ppro.TickTime.createWithTicks(line.endTicks))
+        );
+        if (timeVarying) {
+          ca.addAction(scaleParam.param.createSetTimeVaryingAction(false));
         }
+        ca.addAction(scaleParam.param.createSetValueAction(keyframe, true));
       }, `Legenda: caption ${i + 1}`);
     });
 

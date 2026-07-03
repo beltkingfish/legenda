@@ -219,10 +219,18 @@ Last updated: 2026-07-03.
   the ramp (disclosed in the panel). Line preview marks WCAG-out-of-bounds
   timecodes amber. Pure logic in `src/timing.ts`; 8 new tests (59 total).
 
+- 2026-07-03 — Timing-panel warnings confirmed live (transition 0 → exact amber
+  copy, applied anyway). Yesterday's batching mitigation broke a scoping rule:
+  Actions created before the executeTransaction callback (even inside the same
+  lockedAccess) go stale intermittently — generate died at ~7/38 with "script
+  object is no longer valid". Fixed: actions created in-callback; batching kept.
+- Maintainer reminder: the Transition duration field is INERT with template v1
+  (fixed ≈150ms authored fade; disclosed under the field) — it starts driving the
+  animation when template v2 exposes the ramp.
+
 ## In progress
-- Manual check (needs Premiere): set min display 0.8 → amber warning appears,
-  Generate still works and short captions extend; set gap 400 → flicker warning;
-  set max 3 → preview re-wraps into shorter lines; defaults show no warnings.
+- Manual re-check: Clear → Generate → all 38 captions insert; min display 0.8 →
+  warning + short captions extend; gap 400 → flicker warning; max 3 → live re-wrap.
 
 ## Next (Phase 1 build order)
 8. Style panel (Clean/Bold/Minimal) + global "apply to all" (style params via the
@@ -426,6 +434,11 @@ Last updated: 2026-07-03.
 - Callback-style host APIs (`TrackItemSelection.createEmptySelection`) scope the
   provided object's validity to the callback — using it afterwards throws "The
   script object is no longer valid". Do all work inside the callback.
+- The same scoping applies to **Action objects**: create them INSIDE the
+  `executeTransaction` callback that consumes them (creating them earlier — even
+  within the same lockedAccess — intermittently throws "The script object is no
+  longer valid" mid-generate; found live 2026-07-03 when batching broke this
+  rule). Keyframes MAY be created outside the callback.
   Nuance for the defs-gap list above: cc-ext-uxp-types omissions are sometimes
   accurate about the runtime (this case) and sometimes not (`require`, `console`,
   `classList`) — verify live before declaring a global in globals.d.ts.
