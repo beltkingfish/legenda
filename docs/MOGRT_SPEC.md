@@ -139,6 +139,17 @@ scope call, update SPECIFICATION.md if taken).
   the embedded AE project does not need touching.
 - **Scale-to-sequence**: intrinsic `AE.ADBE Motion` → `Scale` (number write) =
   `sequence.getFrameSize().height / 2160 × 100`, applied right after insert.
+- **Styles at patch time (adopted, step 8)**: every Tier-1/2 style value is ALSO
+  patchable in `definition.json` — set the control's `value` (color = `[r,g,b,a]`
+  0–1 floats, slider = number, checkbox = boolean, matched by `uiName`) AND its
+  capParam's `capPropDefault` (matched by `capPropMatchName` = control `id`, all
+  locales). **Font family/size**: the Line Text control's `fonteditinfo`
+  (`fontEditValue` PostScript-style string, `fontSizeEditValue` number in template
+  px) plus the text capParam's per-text-run arrays (`fontEditValue: [name]`,
+  `fontSizeEditValue: [px]`). Since "Apply to all" = regeneration (ARCHITECTURE
+  §6), the patch channel is the style channel — no capsule polling needed.
+  `fonteditinfo.fontFSItalicValue` is the Phase-1 route to per-line italics
+  (step 10). The Background checkbox, unmatchable via the API, IS drivable here.
 
 ## Open questions still to answer
 1. Plugin-owned track creation without auto-create: check defs for a track-add

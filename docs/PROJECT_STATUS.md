@@ -2,8 +2,8 @@
 
 Update this at the end of any session with meaningful changes (see CLAUDE.md → Update ritual).
 
-Current phase: **Phase 1 — steps 1–7 done and verified live. Next: step 8 (style panel).**
-Last updated: 2026-07-02.
+Current phase: **Phase 1 — step 8 built; awaiting live check of styled generates.**
+Last updated: 2026-07-03.
 
 ## Done
 - Product scope locked (SPECIFICATION.md).
@@ -145,8 +145,24 @@ Last updated: 2026-07-02.
   whole plugin track). Regeneration shares this code path with the verified
   generate. The callback-scoped-selection fix works.
 
+- 2026-07-03 — Step 8 built: style panel. Full definition.json structure dumped
+  first (lesson applied): colors are `[r,g,b,a]` 0–1 arrays; checkbox drivable at
+  patch time; **font family/size patchable via fonteditinfo** (no API needed) —
+  and `fontFSItalicValue` gives step 10 its italic route. `src/style.ts` (StyleDef
+  mirrors presets/style-presets.json; hex→float; PostScript font naming; template-
+  unit mapping with designHeight/1080 scaling), patcher applies style to controls +
+  capParams, renderer takes the working style, panel gains the Caption Style
+  section (presets Clean/Bold/Minimal, editable controls flip to Custom, "Apply to
+  all" = regenerate per ARCHITECTURE §6). Template-v2 items (line height, letter
+  spacing, alignment, outline) shown as a note, not dead controls. 43 tests.
+
 ## In progress
-- (none)
+- Manual check (needs Premiere): switch presets → Generate → Bold should render
+  yellow ExtraBold 60px(-ref) text with a heavier bar + shadow; Minimal no bar,
+  shadow only; edit any control → Custom indicator → Apply to all regenerates with
+  the change. First `<select>` and `<input type="checkbox">` in the panel — note
+  UXP rendering quirks. Known gap: Minimal's outline needs template v2 (shadow-only
+  contrast until then).
 
 ## Next (Phase 1 build order)
 8. Style panel (Clean/Bold/Minimal) + global "apply to all" (style params via the
