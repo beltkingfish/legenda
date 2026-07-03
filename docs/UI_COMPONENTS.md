@@ -31,6 +31,14 @@ elements where supported. One persistent panel, vertically sectioned. Last updat
   pattern (`Really delete "Name"?`).
 - Custom styles persist in the plugin's data folder (`custom-styles.json`,
   presets schema + `version` field — the same shape §10 export/import uses).
+- **Export style… / Import style… (Phase 2)**: Export writes the current
+  working style (named after the loaded saved style, else the active preset,
+  else "Custom style") as a JSON file — the custom-styles.json shape, one
+  entry; suggested filename `<slug>.json`. Import reads such a file (single
+  or multi-style), adds/updates My styles entries by slug identity, and loads
+  the style into the working controls when the file held exactly one. Status:
+  `Exported "Name".` / `Imported "Name".` / `Imported N styles.` — plus a
+  skipped count when a file carried unreadable entries.
 
 ### 3. Animation
 - Animation selector: **Teleprompter** · **Fade**

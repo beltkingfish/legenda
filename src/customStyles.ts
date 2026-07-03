@@ -28,6 +28,20 @@ export function styleIdFromName(name: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+/** A catalog entry from a working StyleDef — deep-cloned, named, slugged. */
+export function makeCustomStyle(name: string, style: StyleDef): CustomStyle {
+  const trimmed = name.trim();
+  const id = styleIdFromName(trimmed);
+  if (trimmed === "" || id === "") {
+    throw new Error("A custom style needs a name.");
+  }
+  return {
+    ...(JSON.parse(JSON.stringify(style)) as StyleDef),
+    id,
+    name: trimmed,
+  };
+}
+
 /**
  * Add or update a style. Returns the new list (input untouched) and whether
  * an existing entry was replaced (drives the "Saved" vs "Updated" copy).
@@ -39,16 +53,8 @@ export function upsertCustomStyle(
   name: string,
   style: StyleDef
 ): { styles: CustomStyle[]; saved: CustomStyle; updated: boolean } {
-  const trimmed = name.trim();
-  const id = styleIdFromName(trimmed);
-  if (trimmed === "" || id === "") {
-    throw new Error("A custom style needs a name.");
-  }
-  const saved: CustomStyle = {
-    ...(JSON.parse(JSON.stringify(style)) as StyleDef),
-    id,
-    name: trimmed,
-  };
+  const saved = makeCustomStyle(name, style);
+  const { id } = saved;
   const index = styles.findIndex((s) => s.id === id);
   if (index >= 0) {
     const next = [...styles];
@@ -65,6 +71,14 @@ export function removeCustomStyle(styles: CustomStyle[], id: string): CustomStyl
 /** The on-disk / export shape (presets schema + version). */
 export function serializeCustomStyles(styles: CustomStyle[]): string {
   return JSON.stringify({ version: CUSTOM_STYLES_VERSION, styles }, null, 2);
+}
+
+/**
+ * A shareable single-style file (SPECIFICATION §10) — exactly the
+ * custom-styles.json shape with one entry, so import needs no second parser.
+ */
+export function exportStyleFile(name: string, style: StyleDef): string {
+  return serializeCustomStyles([makeCustomStyle(name, style)]);
 }
 
 /** Pragmatic shape guard — enough structure for the panel + patcher to use. */

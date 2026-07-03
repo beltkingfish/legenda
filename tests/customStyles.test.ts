@@ -5,6 +5,8 @@ import { test } from "node:test";
 
 import {
   CUSTOM_STYLES_VERSION,
+  exportStyleFile,
+  makeCustomStyle,
   parseCustomStylesFile,
   removeCustomStyle,
   serializeCustomStyles,
@@ -91,4 +93,21 @@ test("parse of a shapeless document yields an empty collection", () => {
 
 test("parse throws on unreadable JSON (caller starts empty, loudly)", () => {
   assert.throws(() => parseCustomStylesFile("not json {"));
+});
+
+test("an exported style file imports back as the same entry (§10 round trip)", () => {
+  const json = exportStyleFile("Shared Look", getPreset("bold"));
+  const { styles, skipped } = parseCustomStylesFile(json);
+  assert.equal(skipped, 0);
+  assert.deepEqual(styles, [makeCustomStyle("Shared Look", getPreset("bold"))]);
+});
+
+test("an exported file merges into a collection with save semantics", () => {
+  const existing = upsertCustomStyle([], "Shared Look", getPreset("clean")).styles;
+  const { styles: incoming } = parseCustomStylesFile(
+    exportStyleFile("shared look", getPreset("minimal"))
+  );
+  const merged = upsertCustomStyle(existing, incoming[0].name, incoming[0]).styles;
+  assert.equal(merged.length, 1); // same slug → updated, not duplicated
+  assert.equal(merged[0].textColor, getPreset("minimal").textColor);
 });

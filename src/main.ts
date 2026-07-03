@@ -4,9 +4,11 @@
 import presets from "../presets/style-presets.json";
 import {
   CUSTOM_STYLES_FILE,
+  exportStyleFile,
   parseCustomStylesFile,
   removeCustomStyle,
   serializeCustomStyles,
+  styleIdFromName,
   upsertCustomStyle,
   type CustomStyle,
 } from "./customStyles";
@@ -15,7 +17,14 @@ import {
   reconcileWordEmphasis,
   type WordEmphasisMap,
 } from "./emphasis";
-import { pickMogrtFile, pickSrtFile, readDataFile, writeDataFile } from "./files";
+import {
+  pickJsonFile,
+  pickMogrtFile,
+  pickSrtFile,
+  readDataFile,
+  saveTextFile,
+  writeDataFile,
+} from "./files";
 import type { ImportedCaptions } from "./model";
 import {
   inspectCapsuleValues,
@@ -41,6 +50,7 @@ import { parseSrt } from "./srt";
 import {
   getPreset,
   isValidHexColor,
+  presetIds,
   type PresetId,
   type StyleDef,
 } from "./style";
@@ -96,6 +106,8 @@ const saveStyleCancel = el<HTMLButtonElement>("save-style-cancel");
 const myStylesRow = el<HTMLElement>("my-styles-row");
 const myStylesSelect = el<HTMLSelectElement>("my-styles-select");
 const deleteStyleButton = el<HTMLButtonElement>("delete-style-button");
+const exportStyleButton = el<HTMLButtonElement>("export-style-button");
+const importStyleButton = el<HTMLButtonElement>("import-style-button");
 const styleStatus = el<HTMLElement>("style-status");
 const minDisplayInput = el<HTMLInputElement>("min-display-input");
 const maxDisplayInput = el<HTMLInputElement>("max-display-input");
@@ -578,8 +590,7 @@ saveStyleConfirm.addEventListener("click", () => {
   })();
 });
 
-myStylesSelect.addEventListener("change", () => {
-  disarmDelete();
+function loadSelectedStyle(): void {
   const style = customStyles.find((s) => s.id === myStylesSelect.value);
   if (!style) {
     return; // placeholder
@@ -593,6 +604,72 @@ myStylesSelect.addEventListener("change", () => {
   renderStyleControls();
   myStylesSelect.value = style.id; // renderStyleControls doesn't touch it, but be explicit
   setStyleStatus(`Loaded "${style.name}". Apply with Generate / Apply to all.`);
+}
+
+myStylesSelect.addEventListener("change", () => {
+  disarmDelete();
+  loadSelectedStyle();
+});
+
+/** Export name: loaded saved style > active preset > "Custom style". */
+function currentStyleName(): string {
+  const loaded = customStyles.find((s) => s.id === myStylesSelect.value);
+  if (loaded) {
+    return loaded.name;
+  }
+  const preset = presetIds().find((p) => p.id === currentPresetId);
+  return preset?.name ?? "Custom style";
+}
+
+exportStyleButton.addEventListener("click", () => {
+  void (async () => {
+    try {
+      const name = currentStyleName();
+      const suggested = `${styleIdFromName(name) || "legenda-style"}.json`;
+      const fileName = await saveTextFile(suggested, exportStyleFile(name, currentStyle));
+      if (fileName !== null) {
+        setStyleStatus(`Exported "${name}".`);
+      }
+    } catch (err) {
+      setStyleStatus(errorText(err), true);
+    }
+  })();
+});
+
+importStyleButton.addEventListener("click", () => {
+  void (async () => {
+    try {
+      const picked = await pickJsonFile();
+      if (!picked) {
+        return; // picker cancelled
+      }
+      const { styles: incoming, skipped } = parseCustomStylesFile(picked.text);
+      if (incoming.length === 0) {
+        setStyleStatus(`No styles found in "${picked.name}".`, true);
+        return;
+      }
+      // Merge with save semantics: same slug = update in place.
+      for (const entry of incoming) {
+        customStyles = upsertCustomStyle(customStyles, entry.name, entry).styles;
+      }
+      await persistCustomStyles();
+      renderMyStyles();
+      let status =
+        incoming.length === 1
+          ? `Imported "${incoming[0].name}".`
+          : `Imported ${incoming.length} styles.`;
+      if (skipped > 0) {
+        status += ` ${skipped} unreadable entr${skipped === 1 ? "y" : "ies"} skipped.`;
+      }
+      if (incoming.length === 1) {
+        myStylesSelect.value = styleIdFromName(incoming[0].name);
+        loadSelectedStyle();
+      }
+      setStyleStatus(status); // after load, so the import message wins
+    } catch (err) {
+      setStyleStatus(errorText(err), true);
+    }
+  })();
 });
 
 deleteStyleButton.addEventListener("click", () => {

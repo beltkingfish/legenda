@@ -24,6 +24,14 @@ interface UxpLocalFileSystem {
     types?: string[];
     allowMultiple?: boolean;
   }): Promise<UxpFile | UxpFile[] | null | undefined>;
+  getFileForSaving(
+    suggestedName: string,
+    options: { types?: string[] }
+  ): Promise<
+    | (UxpFile & { write(data: string | ArrayBuffer, options?: { format?: symbol }): Promise<void> })
+    | null
+    | undefined
+  >;
   getPluginFolder(): Promise<UxpFolder>;
   getTemporaryFolder(): Promise<UxpFolder>;
   /** Per-plugin persistent storage (survives sessions and projects). */
@@ -51,6 +59,38 @@ export async function pickSrtFile(): Promise<{ name: string; text: string } | nu
     throw new Error(`Could not read "${file.name}" as text.`);
   }
   return { name: file.name, text };
+}
+
+/** Open a picker for a .json file (style import); null when cancelled. */
+export async function pickJsonFile(): Promise<{ name: string; text: string } | null> {
+  const picked = await localFileSystem.getFileForOpening({ types: ["json"] });
+  const file = Array.isArray(picked) ? picked[0] : picked;
+  if (!file) {
+    return null;
+  }
+  const text = await file.read();
+  if (typeof text !== "string") {
+    throw new Error(`Could not read "${file.name}" as text.`);
+  }
+  return { name: file.name, text };
+}
+
+/**
+ * Save-file picker → write UTF-8 text (style export). Returns the chosen
+ * file name, or null when the user cancels.
+ */
+export async function saveTextFile(
+  suggestedName: string,
+  text: string
+): Promise<string | null> {
+  const file = await localFileSystem.getFileForSaving(suggestedName, {
+    types: ["json"],
+  });
+  if (!file) {
+    return null;
+  }
+  await file.write(text, { format: formats.utf8 });
+  return file.name;
 }
 
 /** Open a picker for a .mogrt file; the native path feeds insertMogrtFromPath. */

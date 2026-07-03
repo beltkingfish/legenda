@@ -3,9 +3,9 @@
 Update this at the end of any session with meaningful changes (see CLAUDE.md → Update ritual).
 
 Current phase: **Phase 2 — steps 1 (per-word emphasis) and 3 (custom styles)
-done and verified live. Step 2 (per-word color) gated on the AE recolor
-experiment. Phase 1 close items still open: teleprompter template +
-template v2 authoring.**
+verified live; step 4 (style export/import) built, awaiting live verify.
+Step 2 (per-word color) gated on the AE recolor experiment. Phase 1 close
+items still open: teleprompter template + template v2 authoring.**
 Last updated: 2026-07-03.
 
 ## Done
@@ -318,8 +318,19 @@ Last updated: 2026-07-03.
   — persistent plugin-level storage is now a proven capability (also
   de-risks step 4 export/import, which uses the same file shape).
 
+- 2026-07-03 — Phase 2 step 4 built: style export/import (SPECIFICATION §10).
+  Export writes the current working style (named after the loaded saved style,
+  else the active preset) via `getFileForSaving` (verified in cc-ext-uxp-types)
+  as a single-entry custom-styles.json-shaped file — so import needs no second
+  parser. Import merges with save semantics (same slug updates in place; a
+  multi-style file works too), auto-loads single-style files into the working
+  controls, and reports skipped unreadable entries. 97 tests.
+
 ## In progress
-- (none)
+- **Step 4 live checks**: (a) `getFileForSaving` picker works in Premiere's UXP
+  runtime (verified in defs, never exercised live — the read-side pickers and
+  the data folder are proven); (b) export a style → import it back (delete it
+  first to see it reappear); (c) status copy matches UI_COMPONENTS §2.
 
 ## Next (Phase 2 build order)
 1. ~~Per-word italic emphasis~~ — done, verified live.
@@ -330,8 +341,7 @@ Last updated: 2026-07-03.
    Properties-panel finishing pass, or template redesign).
 3. ~~Custom style save/load~~ — done, verified live (incl. persistence across
    plugin restart).
-4. Style export/import — JSON file, presets schema + version field
-   (SPECIFICATION §10).
+4. Style export/import — built; live verify pending (see In progress).
 5. Additional animations/presets — after the Phase 1 close items: teleprompter
    template (MOGRT_SPEC strategies) + template v2 exposures (transition ramp,
    line height, letter spacing, alignment, outline).
