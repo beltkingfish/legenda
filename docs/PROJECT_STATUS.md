@@ -197,6 +197,18 @@ Last updated: 2026-07-03.
   afterwards passed — not reproducible on demand). Maintainer will capture the macOS
   crash report file on the next occurrence; the crashed-thread stack will
   distinguish our-API-usage from Premiere-internal causes.
+- 2026-07-03 — **Crash dumps analyzed (both crashes).** Sentry minidumps recovered
+  from `~/Library/Caches/Adobe/Premiere Pro/26.0/SentryIO-db/completed/` (copies in
+  gitignored `crash-reports/`; custom minidump parser in the session scratchpad).
+  Findings: BOTH crashes are EXC_BAD_ACCESS at the **identical instruction**
+  (`Adobe Premiere Pro 2026 +0xaa692cc`), reached from JavaScript through
+  `libdynamic-napi` (UXP's JS↔native bridge; second dump also via
+  `dynamic-torqnative`, the UXP runtime) into Premiere's UXP host-API
+  implementation cluster. Verdict: **a deterministic Adobe bug in the UXP API
+  layer**, triggered by documented API usage under our workload; which specific
+  call cannot be named without symbols. Strong escalation package (2 dumps +
+  repro workload). Mitigation applied: per-line trim+scale batched into ONE
+  transaction (~3× fewer host-API round-trips per generate).
 
 - 2026-07-03 — Step 9 built: Timing section (UI_COMPONENTS §4) with the exact field
   labels and warning copy; warnings render amber inline and NEVER block. The

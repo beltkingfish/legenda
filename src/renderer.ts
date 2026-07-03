@@ -8,7 +8,8 @@
 import { readPluginFile, writeTempFile } from "./files";
 import { loadTemplate, patchTemplate, type MogrtTemplate } from "./mogrtPatch";
 import {
-  scaleItemToSequence,
+  findComponentParams,
+  MOTION_MATCH_NAME,
   TEMPLATE_HEIGHT_PX,
   type ProjectTxn,
   type TrackItemLike,
@@ -223,15 +224,32 @@ export async function generateCaptions(
       );
     }
 
-    // Trim before the next insert so the default ~4s duration never overlaps
-    // the next line's insert point (insert semantics split/shift at that time).
+    // One transaction per line: trim (must land before the next insert, or
+    // the default ~4s duration overlaps the next insert point) + scale.
+    // Batching also cuts UXP host-API round-trips ~3× — a mitigation for the
+    // crash both dumps place inside Premiere's UXP API layer (2026-07-03).
+    scalePct = (frame.height / TEMPLATE_HEIGHT_PX) * 100;
+    const motionParams = await findComponentParams(txn, item, MOTION_MATCH_NAME);
+    const scaleParam = motionParams?.find((p) => p.name === "Scale");
+    if (!scaleParam) {
+      throw new Error(`Motion → Scale param not found on caption ${i + 1}`);
+    }
     txn.lockedAccess(() => {
+      const actions: unknown[] = [
+        item.createSetEndAction(ppro.TickTime.createWithTicks(line.endTicks)),
+      ];
+      if (scaleParam.param.isTimeVarying()) {
+        actions.push(scaleParam.param.createSetTimeVaryingAction(false));
+      }
+      const keyframe = scaleParam.param.createKeyframe(scalePct);
+      actions.push(scaleParam.param.createSetValueAction(keyframe, true));
       txn.executeTransaction((ca) => {
-        ca.addAction(item.createSetEndAction(ppro.TickTime.createWithTicks(line.endTicks)));
-      }, "Legenda: trim caption");
+        for (const action of actions) {
+          ca.addAction(action);
+        }
+      }, `Legenda: caption ${i + 1}`);
     });
 
-    scalePct = await scaleItemToSequence(txn, item, frame.height);
     inserted++;
     onProgress?.(inserted, plan.length);
   }
