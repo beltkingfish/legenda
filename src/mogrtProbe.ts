@@ -7,28 +7,19 @@
 // All probes report partial progress: whatever stage fails, everything
 // learned up to that point is still shown.
 
+import {
+  CAPSULE_MATCH_NAME,
+  findCapsule,
+  scaleItemToSequence,
+  type ComponentLike,
+  type KeyframeLike,
+  type ParamLike,
+  type ParamValue,
+  type ProjectTxn,
+  type TrackItemLike,
+} from "./params";
 import ppro from "./ppro";
 import { getActiveContext } from "./premiere";
-
-type ParamValue = string | number | boolean | object;
-
-interface KeyframeLike {
-  value: { value: unknown };
-  position: unknown;
-}
-
-interface ParamLike {
-  displayName: string;
-  isTimeVarying(): boolean;
-  areKeyframesSupported(): Promise<boolean>;
-  createKeyframe(value: ParamValue): unknown;
-  createSetTimeVaryingAction(timeVarying: boolean): unknown;
-  createSetValueAction(keyframe: unknown, safeForPlayback?: boolean): unknown;
-  getValueAtTime(time: unknown): Promise<unknown>;
-  getKeyframePtr(time?: unknown): KeyframeLike | null | undefined;
-  /** Static-value keyframe — the companion of createSetValueAction. */
-  getStartValue(): Promise<KeyframeLike>;
-}
 
 /** Own + prototype property names (host objects hide fields behind getters). */
 function allKeys(obj: unknown): string[] {
@@ -85,39 +76,6 @@ function describeKeyframeDeep(keyframe: KeyframeLike, out: string[]): void {
     }
   }
 }
-
-interface ComponentLike {
-  getMatchName(): Promise<string>;
-  getDisplayName(): Promise<string>;
-  getParamCount(): number;
-  getParam(index: number): ParamLike;
-}
-
-interface ChainLike {
-  getComponentCount(): number;
-  getComponentAtIndex(index: number): ComponentLike;
-}
-
-interface InsertedItemLike {
-  getName(): Promise<string>;
-  getDuration(): Promise<{ seconds: number }>;
-  getComponentChain(): Promise<ChainLike>;
-}
-
-interface ProjectTxn {
-  lockedAccess(callback: () => void): void;
-  executeTransaction(
-    callback: (compoundAction: { addAction(action: unknown): boolean }) => void,
-    undoLabel?: string
-  ): boolean;
-}
-
-/** The Graphic Parameters component that holds a MOGRT's exposed params. */
-const CAPSULE_MATCH_NAME = "AE.ADBE Capsule";
-/** Intrinsic Motion component (Position/Scale/…) present from insert time. */
-const MOTION_MATCH_NAME = "AE.ADBE Motion";
-/** Templates are authored at UHD (MOGRT_SPEC); scale down per sequence. */
-const TEMPLATE_HEIGHT_PX = 2160;
 
 function message(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
@@ -207,7 +165,7 @@ async function dumpItem(
   rawItem: unknown,
   out: string[]
 ): Promise<void> {
-  const item = rawItem as InsertedItemLike;
+  const item = rawItem as TrackItemLike;
   if (typeof item.getComponentChain !== "function") {
     return;
   }
@@ -270,73 +228,6 @@ export async function probeSelection(): Promise<string> {
   return report;
 }
 
-/** Locate a component by matchName on a track item's chain; return its params. */
-async function findComponentParams(
-  project: ProjectTxn,
-  item: InsertedItemLike,
-  matchName: string
-): Promise<{ param: ParamLike; name: string }[] | null> {
-  const chain = await item.getComponentChain();
-  const components: ComponentLike[] = [];
-  project.lockedAccess(() => {
-    const count = chain.getComponentCount();
-    for (let i = 0; i < count; i++) {
-      components.push(chain.getComponentAtIndex(i));
-    }
-  });
-
-  let target: ComponentLike | null = null;
-  for (const component of components) {
-    if ((await component.getMatchName()) === matchName) {
-      target = component;
-      break;
-    }
-  }
-  if (!target) {
-    return null;
-  }
-
-  const params: { param: ParamLike; name: string }[] = [];
-  project.lockedAccess(() => {
-    const count = target.getParamCount();
-    for (let i = 0; i < count; i++) {
-      const param = target.getParam(i);
-      params.push({ param, name: param.displayName });
-    }
-  });
-  return params;
-}
-
-/** Locate the Graphic Parameters capsule on a track item's chain, if present. */
-async function findCapsule(
-  project: ProjectTxn,
-  item: InsertedItemLike
-): Promise<{ param: ParamLike; name: string }[] | null> {
-  return findComponentParams(project, item, CAPSULE_MATCH_NAME);
-}
-
-/** Set a numeric param via the proven write path (run #2). */
-function setNumberParam(
-  txn: ProjectTxn,
-  param: ParamLike,
-  value: number,
-  undoLabel: string
-): void {
-  txn.lockedAccess(() => {
-    if (param.isTimeVarying()) {
-      txn.executeTransaction(
-        (ca) => ca.addAction(param.createSetTimeVaryingAction(false)),
-        `${undoLabel} (static)`
-      );
-    }
-    const keyframe = param.createKeyframe(value);
-    txn.executeTransaction(
-      (ca) => ca.addAction(param.createSetValueAction(keyframe, true)),
-      undoLabel
-    );
-  });
-}
-
 /**
  * Read-only: dump each capsule param's CURRENT value and its raw shape. The
  * native shape of "Line Text" tells us what type createKeyframe expects (a
@@ -349,7 +240,7 @@ export async function inspectCapsuleValues(): Promise<string> {
     throw new Error("Open a project with an active sequence first.");
   }
   const selection = await sequence.getSelection();
-  const items = (await selection.getTrackItems()) as unknown as InsertedItemLike[];
+  const items = (await selection.getTrackItems()) as unknown as TrackItemLike[];
   if (items.length === 0) {
     throw new Error("Select the inserted MOGRT clip in the timeline first.");
   }
@@ -423,7 +314,7 @@ export async function writeTestOnSelection(): Promise<string> {
     throw new Error("Open a project with an active sequence first.");
   }
   const selection = await sequence.getSelection();
-  const items = (await selection.getTrackItems()) as unknown as InsertedItemLike[];
+  const items = (await selection.getTrackItems()) as unknown as TrackItemLike[];
   if (items.length === 0) {
     throw new Error("Select the inserted MOGRT clip in the timeline first.");
   }
@@ -546,24 +437,20 @@ export async function probeMogrt(path: string): Promise<string> {
   // an unscaled 2160p template in a 1080 sequence shows no text at all).
   try {
     const frame = await sequence.getFrameSize();
-    const scalePct = (frame.height / TEMPLATE_HEIGHT_PX) * 100;
     const txn = project as unknown as ProjectTxn;
     let scaled = 0;
+    let scalePct = 100;
     for (const rawItem of inserted) {
-      const item = rawItem as InsertedItemLike;
+      const item = rawItem as TrackItemLike;
       if (typeof item.getComponentChain !== "function") {
         continue;
       }
-      const motionParams = await findComponentParams(txn, item, MOTION_MATCH_NAME);
-      const scaleParam = motionParams?.find((p) => p.name === "Scale");
-      if (scaleParam) {
-        setNumberParam(txn, scaleParam.param, scalePct, "Legenda: scale to sequence");
-        scaled++;
-      }
+      scalePct = await scaleItemToSequence(txn, item, frame.height);
+      scaled++;
     }
     out.push(
       `scaled ${scaled} item(s) to ${scalePct.toFixed(1)}% ` +
-        `(sequence ${frame.width}×${frame.height}, template ${TEMPLATE_HEIGHT_PX}p)`
+        `(sequence ${frame.width}×${frame.height})`
     );
   } catch (err) {
     out.push(`scale-down failed: ${message(err)}`);
