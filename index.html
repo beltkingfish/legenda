@@ -116,15 +116,28 @@
       <p class="hint">
         Line height, letter spacing, alignment, and outline arrive with template v2.
       </p>
+      <div id="my-styles-row" class="my-styles-row">
+        <label class="field-label" for="my-styles-select">My styles</label>
+        <select id="my-styles-select" class="field-input field-wide">
+          <option value="">Load a saved style…</option>
+        </select>
+        <button id="delete-style-button" class="button">Delete</button>
+      </div>
       <div class="button-row">
-        <button id="save-style-button" class="button" disabled
-                title="Custom style save/load is Phase 2">
+        <button id="save-style-button" class="button">
           Save as custom style…
         </button>
         <button id="apply-style-button" class="button button-primary" disabled>
           Apply to all
         </button>
       </div>
+      <div id="save-style-row" class="save-style-row">
+        <input id="style-name-input" class="field-input field-wide" type="text"
+               placeholder="Style name" />
+        <button id="save-style-confirm" class="button button-primary">Save</button>
+        <button id="save-style-cancel" class="button">Cancel</button>
+      </div>
+      <p id="style-status" class="hint"></p>
     </section>
 
     <!-- Timing (UI_COMPONENTS.md §4 — warnings never block) -->

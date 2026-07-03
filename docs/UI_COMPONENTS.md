@@ -19,7 +19,18 @@ elements where supported. One persistent panel, vertically sectioned. Last updat
 - Color: Text color swatch
 - Background: toggle **Background** (on/off) → Color swatch, Opacity slider
 - Contrast: Outline width + color; Drop shadow toggle
-- Row of actions: **Save as custom style…** (Phase 2), **Apply to all**
+- Row of actions: **Save as custom style…**, **Apply to all**
+- **Save as custom style… (Phase 2)**: reveals an inline row — name field
+  (placeholder "Style name") + **Save** + **Cancel**. Saving under an existing
+  style's name updates that style (identity = slugified name). Status text
+  confirms: `Saved "Name".` / `Updated "Name".`
+- **My styles (Phase 2)**: dropdown labeled "My styles" (placeholder option
+  "Load a saved style…"), shown only when at least one saved style exists.
+  Selecting one loads it into the working style controls; applying still goes
+  through Generate / Apply to all. **Delete** beside it uses the confirm-once
+  pattern (`Really delete "Name"?`).
+- Custom styles persist in the plugin's data folder (`custom-styles.json`,
+  presets schema + `version` field — the same shape §10 export/import uses).
 
 ### 3. Animation
 - Animation selector: **Teleprompter** · **Fade**

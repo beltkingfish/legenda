@@ -199,6 +199,18 @@ body {
   display: block;
 }
 
+/* Custom styles (UI_COMPONENTS §2): both rows reveal on demand. */
+.save-style-row,
+.my-styles-row {
+  display: none;
+  margin-top: 6px;
+}
+
+.save-style-row.is-visible,
+.my-styles-row.is-visible {
+  display: block;
+}
+
 /* Word-emphasis chips (UI_COMPONENTS §5). UXP ignores flex `gap` — margins. */
 .word-chips {
   margin-top: 4px;

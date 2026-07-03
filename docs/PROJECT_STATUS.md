@@ -2,8 +2,10 @@
 
 Update this at the end of any session with meaningful changes (see CLAUDE.md → Update ritual).
 
-Current phase: **Phase 2 — step 1 (per-word italic emphasis) done and verified live.
-Phase 1 close items still open: teleprompter template + template v2 authoring.**
+Current phase: **Phase 2 — step 1 (per-word emphasis) verified live; step 3
+(custom style save/load) built, awaiting live verify. Step 2 (per-word color)
+gated on the AE recolor experiment. Phase 1 close items still open:
+teleprompter template + template v2 authoring.**
 Last updated: 2026-07-03.
 
 ## Done
@@ -296,8 +298,24 @@ Last updated: 2026-07-03.
   italic run between two upright runs. Per-text-run styling is now a proven
   capability of the patch channel.
 
+- 2026-07-03 — Phase 2 step 3 built (step 2 leapfrogged — it waits on the AE
+  recolor experiment): custom style save/load (SPECIFICATION §6, UI_COMPONENTS
+  §2). `src/customStyles.ts`: a saved style is a StyleDef + id + name — the
+  exact presets/style-presets.json entry shape; identity = slugified name (so
+  re-saving a name updates in place); tolerant parse skips bad entries without
+  losing the collection; file shape = presets schema + version (the §10
+  export/import shape, on purpose). Persistence via UXP
+  `localFileSystem.getDataFolder()` (verified in cc-ext-uxp-types) as
+  custom-styles.json — plugin-level, survives projects. Panel: "Save as custom
+  style…" reveals an inline name row; "My styles" dropdown (visible once one
+  exists) loads into the working controls; Delete uses confirm-once. Editing
+  any control deselects the loaded style (working style diverged). 95 tests.
+
 ## In progress
-- (none)
+- **Step 3 live checks**: (a) `getDataFolder()` write/read works in Premiere's
+  UXP runtime (verified in defs, never exercised live); (b) save → restart
+  plugin → the style is still listed; (c) load → Apply to all renders the saved
+  look; (d) delete confirm-once. The data folder is the only platform unknown.
 
 ## Next (Phase 2 build order)
 1. ~~Per-word italic emphasis~~ — done, verified live.
@@ -306,8 +324,7 @@ Last updated: 2026-07-03.
    If the exporter emits a per-run color field → wire it like italic. If not →
    the patch route is closed; spec-first decision (descope per-word color to the
    Properties-panel finishing pass, or template redesign).
-3. Custom style save/load — "Save as custom style…" (UI_COMPONENTS §2); presets
-   and custom styles are the same data shape (SPECIFICATION §6).
+3. Custom style save/load — built; live verify pending (see In progress).
 4. Style export/import — JSON file, presets schema + version field
    (SPECIFICATION §10).
 5. Additional animations/presets — after the Phase 1 close items: teleprompter

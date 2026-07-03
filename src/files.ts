@@ -13,7 +13,9 @@ interface UxpFile {
 interface UxpFolder {
   getEntry(path: string): Promise<UxpFile>;
   createFile(name: string, options?: { overwrite?: boolean }): Promise<
-    UxpFile & { write(data: ArrayBuffer, options?: { format?: symbol }): Promise<void> }
+    UxpFile & {
+      write(data: string | ArrayBuffer, options?: { format?: symbol }): Promise<void>;
+    }
   >;
 }
 
@@ -24,11 +26,16 @@ interface UxpLocalFileSystem {
   }): Promise<UxpFile | UxpFile[] | null | undefined>;
   getPluginFolder(): Promise<UxpFolder>;
   getTemporaryFolder(): Promise<UxpFolder>;
+  /** Per-plugin persistent storage (survives sessions and projects). */
+  getDataFolder(): Promise<UxpFolder>;
 }
 
 const { localFileSystem, formats } = (
   require("uxp") as {
-    storage: { localFileSystem: UxpLocalFileSystem; formats: { binary: symbol } };
+    storage: {
+      localFileSystem: UxpLocalFileSystem;
+      formats: { binary: symbol; utf8: symbol };
+    };
   }
 ).storage;
 
@@ -65,6 +72,29 @@ export async function readPluginFile(relativePath: string): Promise<Uint8Array> 
     throw new Error(`Expected binary read for ${relativePath}`);
   }
   return new Uint8Array(data);
+}
+
+/**
+ * Read a UTF-8 text file from the plugin data folder; null when it does not
+ * exist yet (getEntry throws for missing entries).
+ */
+export async function readDataFile(name: string): Promise<string | null> {
+  const dataFolder = await localFileSystem.getDataFolder();
+  let entry: UxpFile;
+  try {
+    entry = await dataFolder.getEntry(name);
+  } catch {
+    return null; // never saved
+  }
+  const text = await entry.read();
+  return typeof text === "string" ? text : null;
+}
+
+/** Write a UTF-8 text file into the plugin data folder. */
+export async function writeDataFile(name: string, text: string): Promise<void> {
+  const dataFolder = await localFileSystem.getDataFolder();
+  const file = await dataFolder.createFile(name, { overwrite: true });
+  await file.write(text, { format: formats.utf8 });
 }
 
 /**

@@ -3,11 +3,19 @@
 
 import presets from "../presets/style-presets.json";
 import {
+  CUSTOM_STYLES_FILE,
+  parseCustomStylesFile,
+  removeCustomStyle,
+  serializeCustomStyles,
+  upsertCustomStyle,
+  type CustomStyle,
+} from "./customStyles";
+import {
   buildLineRuns,
   reconcileWordEmphasis,
   type WordEmphasisMap,
 } from "./emphasis";
-import { pickMogrtFile, pickSrtFile } from "./files";
+import { pickMogrtFile, pickSrtFile, readDataFile, writeDataFile } from "./files";
 import type { ImportedCaptions } from "./model";
 import {
   inspectCapsuleValues,
@@ -80,6 +88,15 @@ const bgOpacityInput = el<HTMLInputElement>("bg-opacity-input");
 const shadowEnabledInput = el<HTMLInputElement>("shadow-enabled-input");
 const shadowOpacityInput = el<HTMLInputElement>("shadow-opacity-input");
 const applyStyleButton = el<HTMLButtonElement>("apply-style-button");
+const saveStyleButton = el<HTMLButtonElement>("save-style-button");
+const saveStyleRow = el<HTMLElement>("save-style-row");
+const styleNameInput = el<HTMLInputElement>("style-name-input");
+const saveStyleConfirm = el<HTMLButtonElement>("save-style-confirm");
+const saveStyleCancel = el<HTMLButtonElement>("save-style-cancel");
+const myStylesRow = el<HTMLElement>("my-styles-row");
+const myStylesSelect = el<HTMLSelectElement>("my-styles-select");
+const deleteStyleButton = el<HTMLButtonElement>("delete-style-button");
+const styleStatus = el<HTMLElement>("style-status");
 const minDisplayInput = el<HTMLInputElement>("min-display-input");
 const maxDisplayInput = el<HTMLInputElement>("max-display-input");
 const transitionInput = el<HTMLInputElement>("transition-input");
@@ -459,6 +476,8 @@ function readStyleControls(): void {
     currentStyle.dropShadow.opacity
   );
   currentPresetId = "custom";
+  // The working style diverged from whatever saved style was loaded.
+  myStylesSelect.value = "";
   setSwatch(textColorSwatch, currentStyle.textColor);
   setSwatch(bgColorSwatch, currentStyle.background.color);
   for (const { button } of presetButtons) {
@@ -486,6 +505,139 @@ for (const input of [fontWeightSelect, bgEnabledInput, shadowEnabledInput]) {
 }
 
 renderStyleControls();
+
+// ---------------------------------------------------------------------------
+// Custom styles (UI_COMPONENTS §2, SPECIFICATION §6): same data shape as
+// presets, persisted in the plugin data folder — reusable across projects.
+
+let customStyles: CustomStyle[] = [];
+let deleteArmed = false;
+
+function disarmDelete(): void {
+  deleteArmed = false;
+  deleteStyleButton.textContent = "Delete";
+}
+
+function renderMyStyles(): void {
+  const previous = myStylesSelect.value;
+  myStylesSelect.textContent = "";
+  // UXP's defs type createElement as Element — narrow for option.value.
+  const makeOption = (value: string, label: string): HTMLElement => {
+    const option = document.createElement("option") as HTMLElement & { value: string };
+    option.value = value;
+    option.textContent = label;
+    return option;
+  };
+  myStylesSelect.appendChild(makeOption("", "Load a saved style…"));
+  for (const style of customStyles) {
+    myStylesSelect.appendChild(makeOption(style.id, style.name));
+  }
+  myStylesSelect.value = customStyles.some((s) => s.id === previous) ? previous : "";
+  myStylesRow.className =
+    customStyles.length > 0 ? "my-styles-row is-visible" : "my-styles-row";
+  disarmDelete();
+}
+
+async function persistCustomStyles(): Promise<void> {
+  await writeDataFile(CUSTOM_STYLES_FILE, serializeCustomStyles(customStyles));
+}
+
+function setStyleStatus(text: string, isError = false): void {
+  styleStatus.className = isError ? "hint is-error" : "hint";
+  styleStatus.textContent = text;
+}
+
+saveStyleButton.addEventListener("click", () => {
+  saveStyleRow.className = "save-style-row is-visible";
+  // Offer the loaded style's name so tweak-and-resave updates it in place.
+  const loaded = customStyles.find((s) => s.id === myStylesSelect.value);
+  styleNameInput.value = loaded?.name ?? "";
+  styleNameInput.focus();
+});
+
+saveStyleCancel.addEventListener("click", () => {
+  saveStyleRow.className = "save-style-row";
+  setStyleStatus("");
+});
+
+saveStyleConfirm.addEventListener("click", () => {
+  void (async () => {
+    try {
+      const result = upsertCustomStyle(customStyles, styleNameInput.value, currentStyle);
+      customStyles = result.styles;
+      await persistCustomStyles();
+      renderMyStyles();
+      myStylesSelect.value = result.saved.id;
+      saveStyleRow.className = "save-style-row";
+      setStyleStatus(
+        result.updated ? `Updated "${result.saved.name}".` : `Saved "${result.saved.name}".`
+      );
+    } catch (err) {
+      setStyleStatus(errorText(err), true);
+    }
+  })();
+});
+
+myStylesSelect.addEventListener("change", () => {
+  disarmDelete();
+  const style = customStyles.find((s) => s.id === myStylesSelect.value);
+  if (!style) {
+    return; // placeholder
+  }
+  // Deep-clone into a working StyleDef; strip the catalog fields.
+  const clone = JSON.parse(JSON.stringify(style)) as Partial<CustomStyle> & StyleDef;
+  delete clone.id;
+  delete clone.name;
+  currentStyle = clone;
+  currentPresetId = "custom";
+  renderStyleControls();
+  myStylesSelect.value = style.id; // renderStyleControls doesn't touch it, but be explicit
+  setStyleStatus(`Loaded "${style.name}". Apply with Generate / Apply to all.`);
+});
+
+deleteStyleButton.addEventListener("click", () => {
+  const style = customStyles.find((s) => s.id === myStylesSelect.value);
+  if (!style) {
+    setStyleStatus("Select a saved style to delete.");
+    return;
+  }
+  if (!deleteArmed) {
+    deleteArmed = true;
+    deleteStyleButton.textContent = `Really delete "${style.name}"?`;
+    return;
+  }
+  void (async () => {
+    try {
+      customStyles = removeCustomStyle(customStyles, style.id);
+      await persistCustomStyles();
+      renderMyStyles();
+      setStyleStatus(`Deleted "${style.name}".`);
+    } catch (err) {
+      setStyleStatus(errorText(err), true);
+    }
+  })();
+});
+
+async function loadCustomStyles(): Promise<void> {
+  try {
+    const json = await readDataFile(CUSTOM_STYLES_FILE);
+    if (json === null) {
+      return; // nothing saved yet
+    }
+    const { styles, skipped } = parseCustomStylesFile(json);
+    customStyles = styles;
+    renderMyStyles();
+    if (skipped > 0) {
+      setStyleStatus(`${skipped} saved style(s) could not be read and were skipped.`);
+    }
+  } catch (err) {
+    // A corrupt file should not break the panel — start empty, say so.
+    console.warn("Legenda: could not read custom styles:", err);
+    setStyleStatus("Saved styles could not be read — starting with none.", true);
+  }
+}
+
+void loadCustomStyles();
 
 // ---------------------------------------------------------------------------
 // Timing section (UI_COMPONENTS.md §4). Values always apply; leaving the safe
