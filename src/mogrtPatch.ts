@@ -42,6 +42,10 @@ interface CapParam {
   /** Per-text-run arrays on the text param. */
   fontEditValue?: string[];
   fontSizeEditValue?: number[];
+  /** Characters covered by each style run — MUST match the patched text
+      length, or trailing characters render with fallback styling
+      (found live 2026-07-03: mixed-weight captions past char 19). */
+  fontTextRunLength?: number[];
   textEditValue?: unknown;
   [key: string]: unknown;
 }
@@ -206,6 +210,12 @@ export function patchTemplate(
   definition.capsuleName = options.label;
   for (const entry of definition.capsuleNameLocalized?.strDB ?? []) {
     entry.str = options.label;
+  }
+  // The single style run must span the whole new text (see CapParam note).
+  for (const param of capParamsOf(definition, LINE_TEXT)) {
+    if (Array.isArray(param.fontTextRunLength)) {
+      param.fontTextRunLength = [options.text.length];
+    }
   }
   if (options.style) {
     applyStyle(definition, options.style);

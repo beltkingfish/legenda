@@ -156,13 +156,23 @@ Last updated: 2026-07-03.
   all" = regenerate per ARCHITECTURE §6). Template-v2 items (line height, letter
   spacing, alignment, outline) shown as a note, not dead controls. 43 tests.
 
+- 2026-07-03 — Live check #1 found the **text-run bug**: captions longer than the
+  authored default's 19 chars rendered the tail in fallback styling ("So from what
+  it was |gathered," split mid-line). Cause: `fontTextRunLength: [19]` in the text
+  capParam — the style run spans the AUTHORED text length. Fixed: patcher sets it
+  to `[newText.length]` on every patch. MOGRT_SPEC recipe updated.
+- 2026-07-03 — **Premiere crashed once** while the maintainer was changing style
+  settings (Adobe crash-report dialog). Trigger unknown; not yet reproduced.
+  Watch for a pattern (suspects: rapid regenerates, undo-stack pressure from
+  85-item insert/remove cycles, panel input handling). Collect exact steps if it
+  recurs.
+
 ## In progress
-- Manual check (needs Premiere): switch presets → Generate → Bold should render
-  yellow ExtraBold 60px(-ref) text with a heavier bar + shadow; Minimal no bar,
-  shadow only; edit any control → Custom indicator → Apply to all regenerates with
-  the change. First `<select>` and `<input type="checkbox">` in the panel — note
-  UXP rendering quirks. Known gap: Minimal's outline needs template v2 (shadow-only
-  contrast until then).
+- Manual re-check after the run-length fix: Bold/Minimal presets → Apply to all →
+  confirm EVERY caption is fully styled end to end (especially lines longer than
+  19 characters). Also note any repeat of the crash and what preceded it.
+  Cosmetic: color swatch can wrap to its own line (first `<select>`/checkbox
+  rendering otherwise OK per screenshots).
 
 ## Next (Phase 1 build order)
 8. Style panel (Clean/Bold/Minimal) + global "apply to all" (style params via the

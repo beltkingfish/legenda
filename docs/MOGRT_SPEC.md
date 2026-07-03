@@ -134,9 +134,12 @@ scope call, update SPECIFICATION.md if taken).
   every read door null). **Recipe: per-line template patching** — rewrite
   `definition.json` inside the .mogrt zip: set the text in the `clientControls[]`
   value AND `sourceInfoLocalized.<locale>.capsuleparams.capParams[]`
-  (`capPropDefault` + `textEditValue`), give each variant a fresh `capsuleID`,
-  re-zip, `insertMogrtFromPath`. Confirmed: JSON-only patch changes the render;
-  the embedded AE project does not need touching.
+  (`capPropDefault` + `textEditValue`), **set `fontTextRunLength` to
+  `[newText.length]`** (the style run must span the whole new text — otherwise
+  characters beyond the authored length render with fallback styling; found live
+  2026-07-03), give each variant a fresh `capsuleID`, re-zip,
+  `insertMogrtFromPath`. Confirmed: JSON-only patch changes the render; the
+  embedded AE project does not need touching.
 - **Scale-to-sequence**: intrinsic `AE.ADBE Motion` → `Scale` (number write) =
   `sequence.getFrameSize().height / 2160 × 100`, applied right after insert.
 - **Styles at patch time (adopted, step 8)**: every Tier-1/2 style value is ALSO

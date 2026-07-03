@@ -47,6 +47,7 @@ function makeDefinition() {
               textEditValue: DEFAULT_TEXT,
               fontEditValue: ["Montserrat-Bold"],
               fontSizeEditValue: [96],
+              fontTextRunLength: [DEFAULT_TEXT.length],
             },
             { capPropMatchName: "id-tc", capPropUIName: "Text Color", capPropDefault: [1, 1, 1, 1] },
             { capPropMatchName: "id-bg", capPropUIName: "Background", capPropDefault: true },
@@ -130,6 +131,15 @@ test("style application writes controls AND capParams", () => {
   assert.equal(params[4].capPropDefault, 0);
   assert.equal(controls[5].value, 60); // Shadow Opacity
   assert.equal(params[5].capPropDefault, 60);
+});
+
+test("style run length follows the patched text (found live: mixed styling past char 19)", () => {
+  const longText = "So from what it was gathered, this is a much longer caption line";
+  const { definition } = parseResult(
+    patchTemplate(loadTemplate(makeMogrt()), { text: longText, label: "L1" })
+  );
+  const textParam = definition.sourceInfoLocalized.en_US.capsuleparams.capParams[0];
+  assert.deepEqual(textParam.fontTextRunLength, [longText.length]);
 });
 
 test("style application writes fonteditinfo and per-run font arrays", () => {
