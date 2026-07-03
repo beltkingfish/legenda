@@ -6,16 +6,21 @@
 // re-lays.
 
 import { readPluginFile, writeTempFile } from "./files";
-import { loadTemplate, patchTemplateText, type MogrtTemplate } from "./mogrtPatch";
+import { loadTemplate, patchTemplate, type MogrtTemplate } from "./mogrtPatch";
 import {
   scaleItemToSequence,
   ticks,
+  TEMPLATE_HEIGHT_PX,
   type ProjectTxn,
   type TrackItemLike,
 } from "./params";
 import ppro from "./ppro";
 import { getActiveContext } from "./premiere";
+import { styleToTemplateValues, type StyleDef } from "./style";
 import type { CaptionLine } from "./wrap";
+
+/** Presets are 1080-referenced; the template comp is UHD (MOGRT_SPEC). */
+const DESIGN_SCALE = TEMPLATE_HEIGHT_PX / 1080;
 
 const TEMPLATE_PLUGIN_PATH = "mogrt/legenda-fade-v1.mogrt";
 
@@ -142,6 +147,7 @@ export async function clearCaptions(): Promise<number> {
 
 export async function generateCaptions(
   lines: CaptionLine[],
+  style: StyleDef,
   onProgress?: (done: number, total: number) => void
 ): Promise<GenerateResult> {
   if (lines.length === 0) {
@@ -153,6 +159,7 @@ export async function generateCaptions(
   }
   const txn = project as unknown as ProjectTxn;
   const template = await getTemplate();
+  const styleValues = styleToTemplateValues(style, DESIGN_SCALE);
   const frame = await sequence.getFrameSize();
   const trackIndex = await ensurePluginTrackIndex(sequence);
 
@@ -165,7 +172,11 @@ export async function generateCaptions(
 
   for (const [i, line] of lines.entries()) {
     const label = `Legenda ${String(i + 1).padStart(3, "0")}`;
-    const patched = patchTemplateText(template, line.text, label);
+    const patched = patchTemplate(template, {
+      text: line.text,
+      label,
+      style: styleValues,
+    });
     const path = await writeTempFile(`legenda-line-${i + 1}.mogrt`, patched);
 
     let items: unknown[] = [];
