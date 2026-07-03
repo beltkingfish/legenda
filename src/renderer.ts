@@ -16,6 +16,7 @@ import {
 import ppro from "./ppro";
 import { getActiveContext } from "./premiere";
 import { styleToTemplateValues, type StyleDef } from "./style";
+import { applyTimingToLines, type TimingSettings } from "./timing";
 import {
   planFrameTimings,
   PREMIERE_TICKS_PER_SECOND,
@@ -155,6 +156,7 @@ export async function clearCaptions(): Promise<number> {
 export async function generateCaptions(
   lines: CaptionLine[],
   style: StyleDef,
+  timing: TimingSettings,
   onProgress?: (done: number, total: number) => void
 ): Promise<GenerateResult> {
   if (lines.length === 0) {
@@ -172,7 +174,10 @@ export async function generateCaptions(
     console.warn("Legenda: unreadable sequence timebase; assuming 30 fps grid");
     ticksPerFrame = PREMIERE_TICKS_PER_SECOND / 30;
   }
-  const plan: FramePlanEntry[] = planFrameTimings(sanitizeLineTimings(lines), ticksPerFrame);
+  // Timing settings shape the display windows (min/max/gap — warn-only
+  // settings, always applied), then hard timing hygiene runs on the result.
+  const timed = applyTimingToLines(lines, timing);
+  const plan: FramePlanEntry[] = planFrameTimings(sanitizeLineTimings(timed), ticksPerFrame);
   const droppedLines = lines.length - plan.length;
 
   const txn = project as unknown as ProjectTxn;

@@ -2,7 +2,7 @@
 
 Update this at the end of any session with meaningful changes (see CLAUDE.md → Update ritual).
 
-Current phase: **Phase 1 — steps 1–8 done and verified live. Next: step 9 (timing panel).**
+Current phase: **Phase 1 — step 9 built; awaiting live check. Then step 10 (overrides).**
 Last updated: 2026-07-03.
 
 ## Done
@@ -198,8 +198,19 @@ Last updated: 2026-07-03.
   crash report file on the next occurrence; the crashed-thread stack will
   distinguish our-API-usage from Premiere-internal causes.
 
+- 2026-07-03 — Step 9 built: Timing section (UI_COMPONENTS §4) with the exact field
+  labels and warning copy; warnings render amber inline and NEVER block. The
+  settings genuinely apply: `minSec` extends short captions (bounded by the next
+  caption minus gap), `maxSec` caps display AND feeds the wrapper's duration
+  budget (re-wraps live), `gapMs` trims breathing room between contiguous
+  captions, `transitionMs` is stored + warned but inert until template v2 exposes
+  the ramp (disclosed in the panel). Line preview marks WCAG-out-of-bounds
+  timecodes amber. Pure logic in `src/timing.ts`; 8 new tests (59 total).
+
 ## In progress
-- (none)
+- Manual check (needs Premiere): set min display 0.8 → amber warning appears,
+  Generate still works and short captions extend; set gap 400 → flicker warning;
+  set max 3 → preview re-wraps into shorter lines; defaults show no warnings.
 
 ## Next (Phase 1 build order)
 8. Style panel (Clean/Bold/Minimal) + global "apply to all" (style params via the

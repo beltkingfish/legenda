@@ -25,6 +25,13 @@ import {
   type PresetId,
   type StyleDef,
 } from "./style";
+import {
+  defaultTiming,
+  evaluateTimingWarnings,
+  WCAG,
+  type TimingField,
+  type TimingSettings,
+} from "./timing";
 import { parseTranscriptJson } from "./transcript";
 import { wrapWords, type CaptionLine } from "./wrap";
 
@@ -55,6 +62,16 @@ const bgOpacityInput = el<HTMLInputElement>("bg-opacity-input");
 const shadowEnabledInput = el<HTMLInputElement>("shadow-enabled-input");
 const shadowOpacityInput = el<HTMLInputElement>("shadow-opacity-input");
 const applyStyleButton = el<HTMLButtonElement>("apply-style-button");
+const minDisplayInput = el<HTMLInputElement>("min-display-input");
+const maxDisplayInput = el<HTMLInputElement>("max-display-input");
+const transitionInput = el<HTMLInputElement>("transition-input");
+const gapInput = el<HTMLInputElement>("gap-input");
+const timingWarningEls: Record<TimingField, HTMLElement> = {
+  minSec: el<HTMLElement>("min-display-warning"),
+  maxSec: el<HTMLElement>("max-display-warning"),
+  transitionMs: el<HTMLElement>("transition-warning"),
+  gapMs: el<HTMLElement>("gap-warning"),
+};
 const mogrtProbeButton = el<HTMLButtonElement>("mogrt-probe-button");
 const selectionProbeButton = el<HTMLButtonElement>("selection-probe-button");
 const inspectValuesButton = el<HTMLButtonElement>("inspect-values-button");
@@ -127,7 +144,10 @@ function renderLines(): void {
   if (!imported) {
     return;
   }
-  lines = wrapWords(imported.words, { targetLineChars: currentTargetLineChars() });
+  lines = wrapWords(imported.words, {
+    targetLineChars: currentTargetLineChars(),
+    maxLineSec: currentTiming.maxSec,
+  });
   generateButton.disabled = lines.length === 0;
   applyStyleButton.disabled = lines.length === 0;
 
@@ -148,7 +168,13 @@ function renderLines(): void {
   for (const line of lines) {
     const item = document.createElement("li");
     const time = document.createElement("span");
-    time.className = "line-time";
+    // Amber timecode when the line leaves the WCAG safe zone (informational
+    // only — generation still runs; SPECIFICATION §9).
+    const duration = line.endSec - line.startSec;
+    time.className =
+      duration < WCAG.minSec || duration > WCAG.maxSec
+        ? "line-time is-out-of-bounds"
+        : "line-time";
     time.textContent = `${formatTime(line.startSec)}–${formatTime(line.endSec)}`;
     const text = document.createElement("span");
     text.className = "line-text";
@@ -323,6 +349,58 @@ for (const input of [fontWeightSelect, bgEnabledInput, shadowEnabledInput]) {
 renderStyleControls();
 
 // ---------------------------------------------------------------------------
+// Timing section (UI_COMPONENTS.md §4). Values always apply; leaving the safe
+// zone only shows the exact warning copy — never blocks.
+
+let currentTiming: TimingSettings = defaultTiming();
+
+function renderTimingWarnings(): void {
+  const warnings = evaluateTimingWarnings(currentTiming);
+  for (const field of Object.keys(timingWarningEls) as TimingField[]) {
+    const warning = warnings.find((w) => w.field === field);
+    const elWarning = timingWarningEls[field];
+    if (warning) {
+      elWarning.textContent = `⚠ ${warning.message}`;
+      elWarning.className = "timing-warning is-visible";
+    } else {
+      elWarning.textContent = "";
+      elWarning.className = "timing-warning";
+    }
+  }
+}
+
+function renderTimingControls(): void {
+  minDisplayInput.value = String(currentTiming.minSec);
+  maxDisplayInput.value = String(currentTiming.maxSec);
+  transitionInput.value = String(currentTiming.transitionMs);
+  gapInput.value = String(currentTiming.gapMs);
+  renderTimingWarnings();
+}
+
+function readTimingControls(): void {
+  const read = (input: HTMLInputElement, fallback: number): number => {
+    const parsed = Number.parseFloat(input.value);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+  };
+  currentTiming = {
+    minSec: read(minDisplayInput, currentTiming.minSec),
+    maxSec: Math.max(0.1, read(maxDisplayInput, currentTiming.maxSec)),
+    transitionMs: read(transitionInput, currentTiming.transitionMs),
+    gapMs: read(gapInput, currentTiming.gapMs),
+  };
+  renderTimingWarnings();
+  renderLines(); // maxSec feeds the wrapper; preview bounds marking updates too
+}
+
+for (const input of [minDisplayInput, maxDisplayInput, transitionInput, gapInput]) {
+  input.addEventListener("input", () => {
+    readTimingControls();
+  });
+}
+
+renderTimingControls();
+
+// ---------------------------------------------------------------------------
 // Generate section (UI_COMPONENTS.md §6)
 
 async function onGenerateClick(): Promise<void> {
@@ -332,7 +410,7 @@ async function onGenerateClick(): Promise<void> {
   generateStatus.className = "hint";
   generateStatus.textContent = "Generating…";
   try {
-    const result = await generateCaptions(lines, currentStyle, (done, total) => {
+    const result = await generateCaptions(lines, currentStyle, currentTiming, (done, total) => {
       generateStatus.textContent = `Inserting caption ${done}/${total}…`;
     });
     generateStatus.className = "source-result";
