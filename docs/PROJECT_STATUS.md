@@ -127,14 +127,17 @@ Last updated: 2026-07-02.
 - (Step-6 open questions all resolved — see the step-6 findings sections above and
   MOGRT_SPEC "Runtime facts" / "Value read/write recipes".)
 
+- 2026-07-02 — **Step 7 verified live (first generate)**: 85 captions laid on video
+  track 3 at 50.0% scale from the interview transcript; monitor shows the correct
+  line at the correct time (spot-checked); per-line trims correct, no overlaps;
+  user video/audio untouched. Confirms: per-line patch+insert loop works at real
+  scale; `createSetEndAction` is sequence-time based.
+
 ## In progress
-- Manual check (needs Premiere): sequence with an empty topmost video track →
-  import → Generate. Watch for: instances land at line starts and trim to line ends
-  (no overlap/shift of neighbors); each shows its own line text; fade plays per
-  instance; user content untouched; Generate again clears and re-lays; Clear works.
-  **Unverified runtime assumptions to confirm**: `TrackItemSelection.
-  createEmptySelection` invokes its callback synchronously; `createSetEndAction`
-  is sequence-time based; 85 per-line patched temp files insert acceptably fast.
+- Remaining live checks: **Generate again** (exercises clearPluginTrack /
+  `createEmptySelection`'s sync-callback assumption — should report "cleared 85
+  previous") and the **Clear captions** button; play through several captions to
+  confirm each fade plays; note roughly how long the 85-insert generate took.
 
 ## Next (Phase 1 build order)
 8. Style panel (Clean/Bold/Minimal) + global "apply to all" (style params via the
