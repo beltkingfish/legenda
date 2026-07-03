@@ -2,8 +2,8 @@
 
 Update this at the end of any session with meaningful changes (see CLAUDE.md → Update ritual).
 
-Current phase: **Phase 1 — step 10 built (last build step); awaiting live check.
-Then Phase 1 closes with the teleprompter template + template v2 authoring.**
+Current phase: **Phase 1 — ALL TEN BUILD STEPS DONE and verified live.
+Remaining for phase close: teleprompter template + template v2 authoring.**
 Last updated: 2026-07-03.
 
 ## Done
@@ -261,15 +261,13 @@ Last updated: 2026-07-03.
   harvesting hand-edited color/number values back into the override store before
   regenerate — text/font not readable via API, so it would be partial.)
 
+- 2026-07-03 — **Step 10 fully verified live**: Line 11 renders in the override
+  color AND italic after the gate flip — `capPropFontFauxStyleEdit: true` patched
+  per italic line works; NO template re-export needed. Overrides land on the
+  exact selected line.
+
 ## In progress
-- Manual check (needs Premiere): select a line → set color #FF3333 + italic →
-  Generate → that caption renders red (and italic if faux styles work); switch
-  preset → Apply to all → override persists; Clear overrides → regenerate → gone;
-  change wrap width → overrides on unchanged ranges survive, others drop.
-  **Known risk (pre-flagged)**: template was exported with
-  `capPropFontFauxStyleEdit: false` — italic may be inert until a template
-  re-export with "Enable Faux Styles" checked in the EG panel (5-minute AE task;
-  color override is unaffected either way).
+- (none)
 
 ## Next (Phase 1 build order)
 10. Line-level color/italic override (color: per-line patch value; italic:
