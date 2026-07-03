@@ -4,7 +4,13 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { CaptionWord } from "../src/model";
-import { wrapWords } from "../src/wrap";
+import {
+  planFrameTimings,
+  PREMIERE_TICKS_PER_SECOND,
+  sanitizeLineTimings,
+  wrapWords,
+  type CaptionLine,
+} from "../src/wrap";
 
 /** Word builder: sequential timing, 0.3s per word, 0.1s gap by default. */
 function makeWords(
@@ -110,4 +116,68 @@ test("re-wrapping with a wider budget yields fewer lines", () => {
 
 test("empty input yields no lines", () => {
   assert.deepEqual(wrapWords([], { targetLineChars: 32 }), []);
+});
+
+function makeLine(startSec: number, endSec: number, text = "x"): CaptionLine {
+  return { text, startSec, endSec, firstWord: 0, lastWord: 0 };
+}
+
+test("sanitizeLineTimings clamps overlaps to the next line's start", () => {
+  const lines = [makeLine(0, 2.5), makeLine(2.0, 4)]; // 0.5s overlap
+  const sane = sanitizeLineTimings(lines);
+  assert.equal(sane.length, 2);
+  assert.equal(sane[0].endSec, 2.0);
+  assert.equal(sane[1].endSec, 4);
+});
+
+test("sanitizeLineTimings drops lines emptied by clamping", () => {
+  const lines = [makeLine(1.0, 3.0), makeLine(1.0, 2.0)]; // second starts at first's start
+  const sane = sanitizeLineTimings(lines);
+  assert.deepEqual(
+    sane.map((l) => [l.startSec, l.endSec]),
+    [[1.0, 2.0]]
+  );
+});
+
+test("sanitizeLineTimings passes clean timings through untouched", () => {
+  const lines = [makeLine(0, 1.5), makeLine(1.5, 3), makeLine(3.2, 7)];
+  assert.deepEqual(sanitizeLineTimings(lines), lines);
+});
+
+// 30 fps grid: 254016000000 / 30 ticks per frame.
+const TPF_30 = PREMIERE_TICKS_PER_SECOND / 30;
+
+test("planFrameTimings puts every boundary exactly on the frame grid", () => {
+  const plan = planFrameTimings([makeLine(0.5, 1.8), makeLine(2.0, 3.31)], TPF_30);
+  for (const entry of plan) {
+    assert.equal(Number(entry.startTicks) % TPF_30, 0);
+    assert.equal(Number(entry.endTicks) % TPF_30, 0);
+  }
+  assert.equal(plan[0].startTicks, String(15 * TPF_30)); // 0.5s @30fps = frame 15
+  assert.equal(plan[0].endTicks, String(54 * TPF_30)); // 1.8s = frame 54
+});
+
+test("planFrameTimings kills sub-frame overlaps that seconds-sanitation misses", () => {
+  // Line 1 ends 2.02s (inside frame 60); line 2 starts 2.0s (frame 60 edge).
+  const plan = planFrameTimings([makeLine(0, 2.02), makeLine(2.0, 4)], TPF_30);
+  assert.equal(plan.length, 2);
+  assert.equal(plan[0].endTicks, plan[1].startTicks); // met exactly on the grid
+  assert.ok(Number(plan[0].endTicks) <= Number(plan[1].startTicks));
+});
+
+test("planFrameTimings drops lines shorter than one frame", () => {
+  const plan = planFrameTimings(
+    [makeLine(1.0, 1.01), makeLine(1.5, 2.5)],
+    TPF_30
+  );
+  assert.equal(plan.length, 1);
+  assert.equal(plan[0].text, "x");
+  assert.equal(plan[0].startTicks, String(45 * TPF_30));
+});
+
+test("planFrameTimings keeps starts monotonic after clamping", () => {
+  // Second line starts inside the first's final frame.
+  const plan = planFrameTimings([makeLine(0, 1.999), makeLine(1.98, 3)], TPF_30);
+  assert.equal(plan.length, 2);
+  assert.ok(Number(plan[1].startTicks) >= Number(plan[0].endTicks));
 });

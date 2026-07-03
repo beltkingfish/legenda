@@ -6,16 +6,26 @@
 // re-lays.
 
 import { readPluginFile, writeTempFile } from "./files";
-import { loadTemplate, patchTemplateText, type MogrtTemplate } from "./mogrtPatch";
+import { loadTemplate, patchTemplate, type MogrtTemplate } from "./mogrtPatch";
 import {
   scaleItemToSequence,
-  ticks,
+  TEMPLATE_HEIGHT_PX,
   type ProjectTxn,
   type TrackItemLike,
 } from "./params";
 import ppro from "./ppro";
 import { getActiveContext } from "./premiere";
-import type { CaptionLine } from "./wrap";
+import { styleToTemplateValues, type StyleDef } from "./style";
+import {
+  planFrameTimings,
+  PREMIERE_TICKS_PER_SECOND,
+  sanitizeLineTimings,
+  type CaptionLine,
+  type FramePlanEntry,
+} from "./wrap";
+
+/** Presets are 1080-referenced; the template comp is UHD (MOGRT_SPEC). */
+const DESIGN_SCALE = TEMPLATE_HEIGHT_PX / 1080;
 
 const TEMPLATE_PLUGIN_PATH = "mogrt/legenda-fade-v1.mogrt";
 
@@ -64,6 +74,8 @@ export interface GenerateResult {
   cleared: number;
   trackIndex: number;
   scalePct: number;
+  /** Lines dropped by timing sanitation (zero duration after clamping). */
+  droppedLines: number;
 }
 
 /** Remove every clip item on the plugin-owned track. Returns removed count. */
@@ -142,6 +154,7 @@ export async function clearCaptions(): Promise<number> {
 
 export async function generateCaptions(
   lines: CaptionLine[],
+  style: StyleDef,
   onProgress?: (done: number, total: number) => void
 ): Promise<GenerateResult> {
   if (lines.length === 0) {
@@ -151,8 +164,20 @@ export async function generateCaptions(
   if (!project || !sequence) {
     throw new Error("Open a project with an active sequence first.");
   }
+  // Overlapping boundaries make inserts SPLIT earlier instances into sliver
+  // debris — and Premiere snaps item edges to the FRAME grid, so the plan
+  // must be frame-quantized, not just seconds-sanitized (see planFrameTimings).
+  let ticksPerFrame = Number.parseInt(await sequence.getTimebase(), 10);
+  if (!Number.isFinite(ticksPerFrame) || ticksPerFrame <= 0) {
+    console.warn("Legenda: unreadable sequence timebase; assuming 30 fps grid");
+    ticksPerFrame = PREMIERE_TICKS_PER_SECOND / 30;
+  }
+  const plan: FramePlanEntry[] = planFrameTimings(sanitizeLineTimings(lines), ticksPerFrame);
+  const droppedLines = lines.length - plan.length;
+
   const txn = project as unknown as ProjectTxn;
   const template = await getTemplate();
+  const styleValues = styleToTemplateValues(style, DESIGN_SCALE);
   const frame = await sequence.getFrameSize();
   const trackIndex = await ensurePluginTrackIndex(sequence);
 
@@ -163,16 +188,24 @@ export async function generateCaptions(
   let inserted = 0;
   let scalePct = 100;
 
-  for (const [i, line] of lines.entries()) {
+  for (const [i, line] of plan.entries()) {
     const label = `Legenda ${String(i + 1).padStart(3, "0")}`;
-    const patched = patchTemplateText(template, line.text, label);
+    const patched = patchTemplate(template, {
+      text: line.text,
+      label,
+      style: styleValues,
+    });
     const path = await writeTempFile(`legenda-line-${i + 1}.mogrt`, patched);
 
     let items: unknown[] = [];
     txn.lockedAccess(() => {
       items =
-        editor.insertMogrtFromPath(path, ticks(line.startSec) as never, trackIndex, 0) ??
-        [];
+        editor.insertMogrtFromPath(
+          path,
+          ppro.TickTime.createWithTicks(line.startTicks) as never,
+          trackIndex,
+          0
+        ) ?? [];
     });
     const item = items.find(
       (candidate) =>
@@ -180,7 +213,7 @@ export async function generateCaptions(
     ) as TrackItemLike | undefined;
     if (!item) {
       throw new Error(
-        `Insert failed at line ${i + 1} of ${lines.length} ("${line.text}") — ` +
+        `Insert failed at line ${i + 1} of ${plan.length} ("${line.text}") — ` +
           `${inserted} caption(s) were inserted before the failure.`
       );
     }
@@ -189,15 +222,15 @@ export async function generateCaptions(
     // the next line's insert point (insert semantics split/shift at that time).
     txn.lockedAccess(() => {
       txn.executeTransaction((ca) => {
-        ca.addAction(item.createSetEndAction(ticks(line.endSec)));
+        ca.addAction(item.createSetEndAction(ppro.TickTime.createWithTicks(line.endTicks)));
       }, "Legenda: trim caption");
     });
 
     scalePct = await scaleItemToSequence(txn, item, frame.height);
     inserted++;
-    onProgress?.(inserted, lines.length);
+    onProgress?.(inserted, plan.length);
   }
 
   pluginTrackIndex = trackIndex;
-  return { inserted, cleared, trackIndex, scalePct };
+  return { inserted, cleared, trackIndex, scalePct, droppedLines };
 }

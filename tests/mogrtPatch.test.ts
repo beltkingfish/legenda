@@ -1,42 +1,67 @@
-// Unit tests for the per-line MOGRT text patcher. The synthetic template
-// mirrors the real definition.json structures the recipe touches: the
-// clientControls Line Text value AND sourceInfoLocalized capsuleparams
-// (capPropDefault/textEditValue) — the two fields the step-6 saga was about.
+// Unit tests for the per-line MOGRT patcher. The synthetic template mirrors
+// the REAL definition.json structure (dumped from the shipped template):
+// clientControls with type-dependent value shapes + fonteditinfo, and
+// capsuleparams.capParams linked by capPropMatchName, with per-text-run
+// arrays for font values.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 
-import { loadTemplate, patchTemplateText } from "../src/mogrtPatch";
+import { loadTemplate, patchTemplate } from "../src/mogrtPatch";
+import type { TemplateStyleValues } from "../src/style";
 
 const DEFAULT_TEXT = "Line text goes here";
 
-function makeDefinition(): object {
+function makeDefinition() {
   return {
     capsuleID: "cf38bb48-f937-449a-9c21-282f76b68d12",
     capsuleName: "Legenda Fade v1",
     capsuleNameLocalized: { strDB: [{ localeString: "en_US", str: "Legenda Fade v1" }] },
     clientControls: [
       {
+        id: "id-text",
         uiName: { strDB: [{ localeString: "en_US", str: "Line Text" }] },
         value: { strDB: [{ localeString: "en_US", str: DEFAULT_TEXT }] },
+        fonteditinfo: {
+          capPropFontEdit: true,
+          fontEditValue: "Montserrat-Bold",
+          fontSizeEditValue: 96,
+          fontFSItalicValue: false,
+        },
       },
-      {
-        uiName: { strDB: [{ localeString: "en_US", str: "Text Color" }] },
-        value: { color: [1, 1, 1, 1] },
-      },
+      { id: "id-tc", uiName: { strDB: [{ str: "Text Color" }] }, value: [1, 1, 1, 1] },
+      { id: "id-bg", uiName: { strDB: [{ str: "Background" }] }, value: true },
+      { id: "id-bgc", uiName: { strDB: [{ str: "Background Color" }] }, value: [0, 0, 0, 1] },
+      { id: "id-bgo", uiName: { strDB: [{ str: "Background Opacity" }] }, value: 60 },
+      { id: "id-so", uiName: { strDB: [{ str: "Shadow Opacity" }] }, value: 0 },
+      { id: "id-ver", uiName: { strDB: [{ str: "Legenda Version" }] }, value: 1 },
     ],
     sourceInfoLocalized: {
       en_US: {
         capsuleparams: {
           capParams: [
-            { capPropDefault: DEFAULT_TEXT, textEditValue: DEFAULT_TEXT, type: 6 },
-            { capPropDefault: 60, type: 4 },
+            {
+              capPropMatchName: "id-text",
+              capPropUIName: "Line Text",
+              capPropDefault: DEFAULT_TEXT,
+              textEditValue: DEFAULT_TEXT,
+              fontEditValue: ["Montserrat-Bold"],
+              fontSizeEditValue: [96],
+              fontTextRunLength: [DEFAULT_TEXT.length],
+            },
+            { capPropMatchName: "id-tc", capPropUIName: "Text Color", capPropDefault: [1, 1, 1, 1] },
+            { capPropMatchName: "id-bg", capPropUIName: "Background", capPropDefault: true },
+            { capPropMatchName: "id-bgc", capPropUIName: "Background Color", capPropDefault: [0, 0, 0, 1] },
+            { capPropMatchName: "id-bgo", capPropUIName: "Background Opacity", capPropDefault: 60 },
+            { capPropMatchName: "id-so", capPropUIName: "Shadow Opacity", capPropDefault: 0 },
           ],
         },
       },
     },
   };
 }
+
+type Definition = ReturnType<typeof makeDefinition>;
 
 function makeMogrt(definition: object = makeDefinition()): Uint8Array {
   return zipSync({
@@ -46,59 +71,110 @@ function makeMogrt(definition: object = makeDefinition()): Uint8Array {
   });
 }
 
+const TEST_STYLE: TemplateStyleValues = {
+  fontName: "Montserrat-ExtraBold",
+  fontSize: 120,
+  textColor: [1, 0.914, 0.29, 1],
+  backgroundEnabled: false,
+  backgroundColor: [0.06, 0.06, 0.06, 1],
+  backgroundOpacity: 0,
+  shadowOpacity: 60,
+};
+
+function parseResult(patched: Uint8Array) {
+  const entries = unzipSync(patched);
+  return {
+    entries,
+    definition: JSON.parse(strFromU8(entries["definition.json"])) as Definition,
+  };
+}
+
 test("loadTemplate finds the Line Text default", () => {
-  const template = loadTemplate(makeMogrt());
-  assert.equal(template.defaultText, DEFAULT_TEXT);
+  assert.equal(loadTemplate(makeMogrt()).defaultText, DEFAULT_TEXT);
 });
 
 test("loadTemplate rejects a template without a Line Text control", () => {
-  const definition = makeDefinition() as { clientControls: unknown[] };
+  const definition = makeDefinition() as unknown as { clientControls: unknown[] };
   definition.clientControls = [];
   assert.throws(() => loadTemplate(makeMogrt(definition)), /Line Text/);
 });
 
 test("loadTemplate rejects a zip without definition.json", () => {
-  const zip = zipSync({ "other.txt": new Uint8Array([1]) });
-  assert.throws(() => loadTemplate(zip), /definition\.json/);
+  assert.throws(() => loadTemplate(zipSync({ "other.txt": new Uint8Array([1]) })), /definition\.json/);
 });
 
-function patchAndParse(text: string, label = "Legenda 001") {
-  const template = loadTemplate(makeMogrt());
-  const patched = patchTemplateText(template, text, label);
-  const entries = unzipSync(patched);
-  return {
-    entries,
-    definition: JSON.parse(strFromU8(entries["definition.json"])) as ReturnType<
-      typeof makeDefinition
-    > & {
-      capsuleID: string;
-      capsuleName: string;
-      clientControls: { value?: { strDB?: { str: string }[] } }[];
-      sourceInfoLocalized: {
-        en_US: { capsuleparams: { capParams: { capPropDefault?: unknown; textEditValue?: unknown }[] } };
-      };
-    },
-  };
-}
-
-test("patches all three text fields", () => {
-  const { definition } = patchAndParse("Hello world");
-  assert.equal(definition.clientControls[0].value?.strDB?.[0].str, "Hello world");
+test("patches the three text fields", () => {
+  const { definition } = parseResult(
+    patchTemplate(loadTemplate(makeMogrt()), { text: "Hello world", label: "L1" })
+  );
+  assert.equal(definition.clientControls[0].value && typeof definition.clientControls[0].value === "object"
+    ? (definition.clientControls[0].value as { strDB: { str: string }[] }).strDB[0].str
+    : undefined, "Hello world");
   const param = definition.sourceInfoLocalized.en_US.capsuleparams.capParams[0];
   assert.equal(param.capPropDefault, "Hello world");
   assert.equal(param.textEditValue, "Hello world");
 });
 
-test("leaves non-text fields and other entries untouched", () => {
-  const { definition, entries } = patchAndParse("Hello world");
-  const numericParam = definition.sourceInfoLocalized.en_US.capsuleparams.capParams[1];
-  assert.equal(numericParam.capPropDefault, 60);
+test("style application writes controls AND capParams", () => {
+  const { definition } = parseResult(
+    patchTemplate(loadTemplate(makeMogrt()), { text: "Hi", label: "L1", style: TEST_STYLE })
+  );
+  const controls = definition.clientControls;
+  const params = definition.sourceInfoLocalized.en_US.capsuleparams.capParams;
+
+  assert.deepEqual(controls[1].value, [1, 0.914, 0.29, 1]); // Text Color
+  assert.deepEqual(params[1].capPropDefault, [1, 0.914, 0.29, 1]);
+  assert.equal(controls[2].value, false); // Background checkbox
+  assert.equal(params[2].capPropDefault, false);
+  assert.deepEqual(controls[3].value, [0.06, 0.06, 0.06, 1]);
+  assert.equal(controls[4].value, 0); // Background Opacity
+  assert.equal(params[4].capPropDefault, 0);
+  assert.equal(controls[5].value, 60); // Shadow Opacity
+  assert.equal(params[5].capPropDefault, 60);
+});
+
+test("style run length follows the patched text (found live: mixed styling past char 19)", () => {
+  const longText = "So from what it was gathered, this is a much longer caption line";
+  const { definition } = parseResult(
+    patchTemplate(loadTemplate(makeMogrt()), { text: longText, label: "L1" })
+  );
+  const textParam = definition.sourceInfoLocalized.en_US.capsuleparams.capParams[0];
+  assert.deepEqual(textParam.fontTextRunLength, [longText.length]);
+});
+
+test("style application writes fonteditinfo and per-run font arrays", () => {
+  const { definition } = parseResult(
+    patchTemplate(loadTemplate(makeMogrt()), { text: "Hi", label: "L1", style: TEST_STYLE })
+  );
+  const info = definition.clientControls[0].fonteditinfo;
+  assert.equal(info?.fontEditValue, "Montserrat-ExtraBold");
+  assert.equal(info?.fontSizeEditValue, 120);
+  const textParam = definition.sourceInfoLocalized.en_US.capsuleparams.capParams[0];
+  assert.deepEqual(textParam.fontEditValue, ["Montserrat-ExtraBold"]);
+  assert.deepEqual(textParam.fontSizeEditValue, [120]);
+});
+
+test("without style, authored defaults stay untouched", () => {
+  const { definition } = parseResult(
+    patchTemplate(loadTemplate(makeMogrt()), { text: "Hi", label: "L1" })
+  );
+  assert.deepEqual(definition.clientControls[1].value, [1, 1, 1, 1]);
+  assert.equal(definition.clientControls[0].fonteditinfo?.fontEditValue, "Montserrat-Bold");
+});
+
+test("Legenda Version and non-style entries stay untouched by style", () => {
+  const { definition, entries } = parseResult(
+    patchTemplate(loadTemplate(makeMogrt()), { text: "Hi", label: "L1", style: TEST_STYLE })
+  );
+  assert.equal(definition.clientControls[6].value, 1);
   assert.deepEqual([...entries["project.aegraphic"]], [1, 2, 3, 4, 5]);
   assert.deepEqual([...entries["thumb.png"]], [9, 8, 7]);
 });
 
 test("assigns a fresh capsuleID and the given label", () => {
-  const { definition } = patchAndParse("Hello", "Legenda 042");
+  const { definition } = parseResult(
+    patchTemplate(loadTemplate(makeMogrt()), { text: "Hi", label: "Legenda 042" })
+  );
   assert.notEqual(definition.capsuleID, "cf38bb48-f937-449a-9c21-282f76b68d12");
   assert.match(definition.capsuleID, /^[0-9a-f-]{36}$/);
   assert.equal(definition.capsuleName, "Legenda 042");
@@ -106,19 +182,16 @@ test("assigns a fresh capsuleID and the given label", () => {
 
 test("two patches from one template get distinct capsuleIDs", () => {
   const template = loadTemplate(makeMogrt());
-  const a = unzipSync(patchTemplateText(template, "A", "L1"));
-  const b = unzipSync(patchTemplateText(template, "B", "L2"));
-  const idA = (JSON.parse(strFromU8(a["definition.json"])) as { capsuleID: string }).capsuleID;
-  const idB = (JSON.parse(strFromU8(b["definition.json"])) as { capsuleID: string }).capsuleID;
-  assert.notEqual(idA, idB);
+  const a = parseResult(patchTemplate(template, { text: "A", label: "L1" }));
+  const b = parseResult(patchTemplate(template, { text: "B", label: "L2" }));
+  assert.notEqual(a.definition.capsuleID, b.definition.capsuleID);
 });
 
 test("patching does not mutate the loaded template", () => {
   const template = loadTemplate(makeMogrt());
-  patchTemplateText(template, "Mutation check", "L1");
-  const definition = JSON.parse(strFromU8(template.entries["definition.json"])) as {
-    clientControls: { value?: { strDB?: { str: string }[] } }[];
-  };
-  assert.equal(definition.clientControls[0].value?.strDB?.[0].str, DEFAULT_TEXT);
+  patchTemplate(template, { text: "Mutation check", label: "L1", style: TEST_STYLE });
+  const definition = JSON.parse(strFromU8(template.entries["definition.json"])) as Definition;
+  assert.deepEqual(definition.clientControls[1].value, [1, 1, 1, 1]);
+  assert.equal(definition.clientControls[0].fonteditinfo?.fontEditValue, "Montserrat-Bold");
   assert.equal(template.defaultText, DEFAULT_TEXT);
 });

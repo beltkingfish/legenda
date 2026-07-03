@@ -2,8 +2,8 @@
 
 Update this at the end of any session with meaningful changes (see CLAUDE.md → Update ritual).
 
-Current phase: **Phase 1 — steps 1–7 done and verified live. Next: step 8 (style panel).**
-Last updated: 2026-07-02.
+Current phase: **Phase 1 — steps 1–8 done and verified live. Next: step 9 (timing panel).**
+Last updated: 2026-07-03.
 
 ## Done
 - Product scope locked (SPECIFICATION.md).
@@ -144,6 +144,59 @@ Last updated: 2026-07-02.
   plus accumulated probe-test debris on the track — confirming clear sweeps the
   whole plugin track). Regeneration shares this code path with the verified
   generate. The callback-scoped-selection fix works.
+
+- 2026-07-03 — Step 8 built: style panel. Full definition.json structure dumped
+  first (lesson applied): colors are `[r,g,b,a]` 0–1 arrays; checkbox drivable at
+  patch time; **font family/size patchable via fonteditinfo** (no API needed) —
+  and `fontFSItalicValue` gives step 10 its italic route. `src/style.ts` (StyleDef
+  mirrors presets/style-presets.json; hex→float; PostScript font naming; template-
+  unit mapping with designHeight/1080 scaling), patcher applies style to controls +
+  capParams, renderer takes the working style, panel gains the Caption Style
+  section (presets Clean/Bold/Minimal, editable controls flip to Custom, "Apply to
+  all" = regenerate per ARCHITECTURE §6). Template-v2 items (line height, letter
+  spacing, alignment, outline) shown as a note, not dead controls. 43 tests.
+
+- 2026-07-03 — Live check #1 found the **text-run bug**: captions longer than the
+  authored default's 19 chars rendered the tail in fallback styling ("So from what
+  it was |gathered," split mid-line). Cause: `fontTextRunLength: [19]` in the text
+  capParam — the style run spans the AUTHORED text length. Fixed: patcher sets it
+  to `[newText.length]` on every patch. MOGRT_SPEC recipe updated.
+- 2026-07-03 — **Premiere crashed once** while the maintainer was changing style
+  settings (Adobe crash-report dialog). Trigger unknown; not yet reproduced.
+  Watch for a pattern (suspects: rapid regenerates, undo-stack pressure from
+  85-item insert/remove cycles, panel input handling). Collect exact steps if it
+  recurs.
+
+- 2026-07-03 — **Run-length fix verified live**: Bold/Minimal apply uniformly across
+  entire lines (screenshots). Regeneration reported "(cleared 56 previous)" ✓;
+  checkbox/select controls render fine; swatch wrap is a cosmetic nit.
+- 2026-07-03 — **Debris bug found & fixed**: ~1-frame sliver clips accumulated on the
+  caption track (clear counted 56 items for a 38-line generate ⇒ 18 slivers; sequence
+  end stretched past footage). Cause: line times can OVERLAP (punctuation-merge can
+  extend a word's end past the next word's start; crosstalk), and insert semantics
+  SPLIT any instance spanning the insert point — the split tail then cascades right
+  with every subsequent insert. Fix: `sanitizeLineTimings` (pure, tested) clamps each
+  line's end to the next line's start and drops emptied lines before insertion;
+  Generate reports skipped zero-length lines.
+
+- 2026-07-03 — **Slivers persisted after the seconds-level fix** (some carrying real
+  caption text — split tails keep their parent's properties). Deeper cause: Premiere
+  snaps item edges to the FRAME grid, so sub-frame overlaps re-emerge after insertion
+  no matter how clean the seconds are. Fix: `planFrameTimings` — all boundaries
+  quantized to the sequence's own grid (`Sequence.getTimebase()` ticks-per-frame ×
+  integer frame math via `TickTime.createWithTicks`), ends clamped to next starts in
+  frame space, sub-frame lines dropped. Overlap is now impossible on the grid
+  Premiere snaps to. (Maintainer confirmed their test ritual always stops+reloads
+  the plugin in UDT — the sliver test WAS running the seconds-level fix, so frame
+  snapping is confirmed as the real mechanism, not stale-build noise.)
+
+- 2026-07-03 — **Step 8 stress-verified**: after the frame-grid fix, a dozen
+  consecutive style-change + Apply-to-all regeneration cycles succeeded with no
+  sliver recurrence reported.
+- 2026-07-03 — **Crash #2** (suspected near "Apply to all", but the 12× stress test
+  afterwards passed — not reproducible on demand). Maintainer will capture the macOS
+  crash report file on the next occurrence; the crashed-thread stack will
+  distinguish our-API-usage from Premiere-internal causes.
 
 ## In progress
 - (none)

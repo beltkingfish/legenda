@@ -61,6 +61,14 @@ def patch_definition(data: bytes, new_text: str, label: str | None) -> bytes:
         return obj
 
     d = walk(d)
+
+    # The single style run must span the new text, or characters beyond the
+    # authored length render with fallback styling (found live 2026-07-03).
+    for info in d.get("sourceInfoLocalized", {}).values():
+        for p in info.get("capsuleparams", {}).get("capParams", []):
+            if isinstance(p.get("fontTextRunLength"), list):
+                p["fontTextRunLength"] = [len(new_text)]
+
     print(f"replaced {replaced} field(s) holding {old!r}")
     return json.dumps(d, ensure_ascii=False).encode("utf-8")
 

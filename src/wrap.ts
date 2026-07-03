@@ -40,6 +40,74 @@ const EOS_BREAK_FILL = 0.6;
 const DEFAULT_MAX_LINE_SEC = 7; // WCAG ceiling (SPECIFICATION §9)
 const DEFAULT_PAUSE_BREAK_SEC = 1.5;
 
+/**
+ * Renderer-facing guarantee: monotonic, non-overlapping, positive-duration
+ * line timings. Word times CAN overlap (punctuation-merge extensions,
+ * crosstalk in real transcripts), and inserting a MOGRT inside an existing
+ * instance SPLITS it — cascading ~1-frame debris clips down the track
+ * (found live 2026-07-03: 18 slivers from a 38-line generate). Each line's
+ * end is clamped to the next line's start; empty lines are dropped.
+ */
+export function sanitizeLineTimings(lines: CaptionLine[]): CaptionLine[] {
+  const out: CaptionLine[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const next = lines[i + 1];
+    const endSec = next ? Math.min(lines[i].endSec, next.startSec) : lines[i].endSec;
+    if (endSec > lines[i].startSec) {
+      out.push({ ...lines[i], endSec });
+    }
+  }
+  return out;
+}
+
+/** Premiere's fixed tick rate (ticks per second). */
+export const PREMIERE_TICKS_PER_SECOND = 254016000000;
+
+export interface FramePlanEntry {
+  text: string;
+  /** Frame-aligned boundaries as tick strings for TickTime.createWithTicks. */
+  startTicks: string;
+  endTicks: string;
+}
+
+/**
+ * Quantize line boundaries to the sequence's frame grid (integer tick math).
+ * Seconds-level sanitation is not enough: Premiere snaps item edges to
+ * frames, so a sub-frame overlap re-emerges after insertion and splits the
+ * previous instance (live find 2026-07-03: half-frame sliver clips carrying
+ * real caption text). With every boundary ON the grid, and ends clamped to
+ * the next start in frame space, overlap is impossible on the grid Premiere
+ * snaps to. `ticksPerFrame` comes from Sequence.getTimebase().
+ */
+export function planFrameTimings(
+  lines: CaptionLine[],
+  ticksPerFrame: number
+): FramePlanEntry[] {
+  const toFrame = (seconds: number): number =>
+    Math.floor((seconds * PREMIERE_TICKS_PER_SECOND) / ticksPerFrame + 1e-9);
+
+  const out: FramePlanEntry[] = [];
+  let previousEndFrame = Number.NEGATIVE_INFINITY;
+  for (let i = 0; i < lines.length; i++) {
+    const startFrame = Math.max(toFrame(lines[i].startSec), previousEndFrame);
+    const next = lines[i + 1];
+    let endFrame = toFrame(lines[i].endSec);
+    if (next) {
+      endFrame = Math.min(endFrame, toFrame(next.startSec));
+    }
+    if (endFrame <= startFrame) {
+      continue; // shorter than a frame after quantization
+    }
+    previousEndFrame = endFrame;
+    out.push({
+      text: lines[i].text,
+      startTicks: String(startFrame * ticksPerFrame),
+      endTicks: String(endFrame * ticksPerFrame),
+    });
+  }
+  return out;
+}
+
 export function wrapWords(words: CaptionWord[], options: WrapOptions): CaptionLine[] {
   const targetChars = Math.max(1, Math.floor(options.targetLineChars));
   const maxLineSec = options.maxLineSec ?? DEFAULT_MAX_LINE_SEC;

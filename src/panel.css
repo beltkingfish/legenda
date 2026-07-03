@@ -189,6 +189,42 @@ body {
   color: var(--text);
 }
 
+.preset-button.is-active {
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
+.custom-indicator {
+  display: none;
+  margin-left: 8px;
+  color: var(--text-dim);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.custom-indicator.is-visible {
+  display: inline-block;
+}
+
+.field-wide {
+  width: 140px;
+}
+
+.check-label {
+  color: var(--text);
+}
+
+.swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-left: 6px;
+  vertical-align: middle;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
 .probe-output {
   margin: 10px 0 0;
   min-height: 1.5em;
