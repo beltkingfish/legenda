@@ -186,13 +186,14 @@ Last updated: 2026-07-03.
   quantized to the sequence's own grid (`Sequence.getTimebase()` ticks-per-frame ×
   integer frame math via `TickTime.createWithTicks`), ends clamped to next starts in
   frame space, sub-frame lines dropped. Overlap is now impossible on the grid
-  Premiere snaps to. (Caveat: possible the prior test ran a stale build — the frame
-  fix is correct regardless and supersedes it.)
+  Premiere snaps to. (Maintainer confirmed their test ritual always stops+reloads
+  the plugin in UDT — the sliver test WAS running the seconds-level fix, so frame
+  snapping is confirmed as the real mechanism, not stale-build noise.)
 
 ## In progress
-- Manual re-check (CONFIRM the plugin was rebuilt AND reloaded in UDT first):
-  Clear → Generate → zoom the caption track end-to-end → no slivers; sequence end
-  == last caption end. Crash from yesterday: not yet reproduced — keep watching.
+- Manual re-check: Clear → Generate → zoom the caption track end-to-end → no
+  slivers; sequence end == last caption end. Crash from yesterday: not yet
+  reproduced — keep watching.
 
 ## Next (Phase 1 build order)
 8. Style panel (Clean/Bold/Minimal) + global "apply to all" (style params via the
