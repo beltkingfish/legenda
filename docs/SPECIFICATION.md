@@ -49,6 +49,15 @@ Exact values live in `presets/style-presets.json`.
   individual words for emphasis (e.g. an interviewee stressing a word). Phase 1 targets
   line-level override reliably; per-word override is staged (see §9). Overrides persist
   through global updates unless explicitly cleared.
+- **Native finishing pass (clarified 2026-07-03)**: because the templates expose their
+  params, Premiere's own Properties panel can hand-tune any individual caption instance
+  (fonts, sizes, colors, even the text — useful for one-off fixes the plugin cannot make).
+  Division of labor: the plugin owns everything that must SURVIVE regeneration (import,
+  wrapping, timing, global styles, the durable per-line overrides above); the Properties
+  panel is the per-instance finishing pass AFTER the layout is final. **Regenerating
+  clears the plugin track and discards Properties-panel hand-edits** — finish last.
+  Consequence: the plugin deliberately does NOT grow per-caption font/size/background
+  override UI or per-caption text editing; Premiere provides those natively.
 
 ## 8. Input / import
 - **Primary ingress: Premiere transcript.** The user transcribes in Premiere's Text panel,
@@ -56,8 +65,9 @@ Exact values live in `presets/style-presets.json`.
   available transcript and offers to import its text + word-level timing.
 - **Fallback ingress: SRT file.** The user selects an .srt; the plugin parses cues and
   timecodes. (SRT is phrase-level; word timing within a cue is interpolated.)
-- After import, the plugin panel is the single source of truth for styling. No round-trip
-  syncing back to Premiere's transcript is required.
+- After import, the plugin panel is the single source of truth for everything that
+  survives regeneration (see §7's finishing-pass note for the per-instance exception).
+  No round-trip syncing back to Premiere's transcript is required.
 
 ## 9. Accessibility timing (warn, never block)
 Show the standard alongside each field; warn (non-blocking) when a value leaves the safe

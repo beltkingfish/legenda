@@ -242,6 +242,17 @@ Last updated: 2026-07-03.
   Color rides the per-line patch (override merged into template values); italic
   writes `fontFSItalicValue` (control + per-run capParam array). 69 tests.
 
+- 2026-07-03 — **Italic override renders** (screenshots: monitor + Properties show
+  Italic) — the faux-styles risk is retired; no template re-export needed.
+- 2026-07-03 — **Scope decision (SPECIFICATION §7 updated first)**: Premiere's
+  Properties panel is the official per-instance *finishing pass* — it can hand-tune
+  fonts/sizes/colors/text on individual instances because we exposed the params.
+  Plugin owns everything that must survive regeneration; regenerate DISCARDS
+  Properties hand-edits (documented). The plugin deliberately will not grow
+  per-caption font/size/bg/text-editing UI. (Possible future EXPERIMENTS idea:
+  harvesting hand-edited color/number values back into the override store before
+  regenerate — text/font not readable via API, so it would be partial.)
+
 ## In progress
 - Manual check (needs Premiere): select a line → set color #FF3333 + italic →
   Generate → that caption renders red (and italic if faux styles work); switch
