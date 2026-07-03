@@ -1,15 +1,11 @@
-// Dev probe for step 6 (docs/MOGRT_SPEC.md): inserts a .mogrt into the active
-// sequence and dumps every component's matchName/displayName and each param's
-// displayName — the ground truth the renderer's name-matching relies on.
-// Read-only besides the insert itself (undoable in Premiere).
+// Dev probes for step 6 (docs/MOGRT_SPEC.md). The step-6 investigation is
+// complete — its findings live in MOGRT_SPEC "Runtime facts" and "Value
+// read/write recipes" — but these probes stay: they are the fastest way to
+// validate a re-exported template against the contract, and they document
+// the working API recipes the step-7 renderer builds on.
 //
-// Deliberately probes the step-2 open questions:
-//   - tries an out-of-range video track index first (auto-create?), then falls
-//     back to existing tracks, reporting every attempt
-//   - reveals how Essential Graphics params surface in the component chain
-//
-// The probe never hides partial progress: whatever stage fails, everything
-// learned up to that point is still reported.
+// All probes report partial progress: whatever stage fails, everything
+// learned up to that point is still shown.
 
 import ppro from "./ppro";
 import { getActiveContext } from "./premiere";
@@ -416,115 +412,10 @@ export async function inspectCapsuleValues(): Promise<string> {
 }
 
 /**
- * Full text-write recipe test, per Premiere's own error-message guidance
- * ("Use GetKeyframeAtTime … the value can be extracted from the keyframe"):
- *   1. kf = getKeyframePtr(TIME_ZERO)          — read the typed keyframe
- *   2. createSetValueAction(kf) unchanged      — prove the write channel
- *   3. mutate kf.value.value = test string     — swap text inside the keyframe
- *   4. createSetValueAction(kf) again          — write the new text
- *   5. re-read via getKeyframePtr              — verify it stuck
- * If all five hold, the renderer's text path is solved.
- */
-export async function roundTripLineText(): Promise<string> {
-  const { project, sequence } = await getActiveContext();
-  if (!project || !sequence) {
-    throw new Error("Open a project with an active sequence first.");
-  }
-  const selection = await sequence.getSelection();
-  const items = (await selection.getTrackItems()) as unknown as InsertedItemLike[];
-  if (items.length === 0) {
-    throw new Error("Select the inserted MOGRT clip in the timeline first.");
-  }
-  const txn = project as unknown as ProjectTxn;
-  const params = await findCapsule(txn, items[0]);
-  const match = params?.find((p) => p.name === "Line Text");
-  if (!match) {
-    throw new Error('No "Line Text" param found on the selected clip.');
-  }
-
-  const out: string[] = [];
-
-  // 1. Read the typed keyframe (getStartValue for static params — run #3).
-  const typed = await getTypedKeyframe(match.param);
-  if (!typed) {
-    return "no typed keyframe via getStartValue/getKeyframePtr — escalate.";
-  }
-  const { keyframe, via } = typed;
-  const inner = keyframe.value?.value;
-  let innerJson: string;
-  try {
-    innerJson = JSON.stringify(inner);
-  } catch {
-    innerJson = String(inner);
-  }
-  out.push(
-    `1. keyframe read ✓ via ${via} — inner value type: ${typeof inner}, value: ${innerJson}`
-  );
-
-  const writeKeyframe = (label: string): void => {
-    txn.lockedAccess(() => {
-      txn.executeTransaction(
-        (ca) => ca.addAction(match.param.createSetValueAction(keyframe, true)),
-        label
-      );
-    });
-  };
-
-  // 2. Write the unchanged keyframe back — proves the channel.
-  try {
-    writeKeyframe("Legenda: Line Text write-back");
-    out.push("2. write-back of unchanged keyframe ✓");
-  } catch (err) {
-    out.push(`2. write-back FAILED — ${message(err)} → escalate.`);
-    const report = out.join("\n");
-    console.log(report);
-    return report;
-  }
-
-  // 3–4. Swap the text inside the keyframe and write again.
-  if (typeof inner !== "string") {
-    out.push(
-      `3. inner value is ${typeof inner}, not string — see raw shape above; ` +
-        "text lives deeper in the structure. Paste this report back for analysis."
-    );
-    const report = out.join("\n");
-    console.log(report);
-    return report;
-  }
-  try {
-    keyframe.value.value = "LEGENDA SET ✓";
-    writeKeyframe("Legenda: Line Text set test");
-    out.push("3–4. mutated keyframe text and wrote it ✓");
-  } catch (err) {
-    out.push(`3–4. mutated write FAILED — ${message(err)}`);
-    const report = out.join("\n");
-    console.log(report);
-    return report;
-  }
-
-  // 5. Verify.
-  try {
-    const after = match.param.getKeyframePtr(ppro.TickTime.TIME_ZERO);
-    out.push(`5. re-read: "${String(after?.value?.value)}"`);
-    out.push("");
-    out.push(
-      String(after?.value?.value) === "LEGENDA SET ✓"
-        ? "TEXT WRITE PATH PROVEN ✓ — check the Program monitor too."
-        : "Write reported success but re-read differs — check the Program monitor."
-    );
-  } catch (err) {
-    out.push(`5. re-read threw: ${message(err)} — check the Program monitor visually.`);
-  }
-
-  const report = out.join("\n");
-  console.log(report);
-  return report;
-}
-
-/**
- * Write-path prototype (step 6, open question #1): set one exposed param of
- * each value type — string, number, color — on the selected MOGRT, then read
- * each back. Proves the renderer can drive the template before step 7.
+ * Write-path check: set one exposed param of each API-writable value type —
+ * number and color — on the selected MOGRT, then read each back. (Text is NOT
+ * API-writable; it goes through template patching — see MOGRT_SPEC "Value
+ * read/write recipes".)
  */
 export async function writeTestOnSelection(): Promise<string> {
   const { project, sequence } = await getActiveContext();
@@ -546,12 +437,11 @@ export async function writeTestOnSelection(): Promise<string> {
     );
   }
 
-  // One representative write per value type the renderer needs.
-  // Color range is assumed 0–1 float (AE convention); readback confirms.
+  // One representative write per API-writable value type (confirmed live:
+  // colors are 0–1 floats).
   const targets: { name: string; value: ParamValue; note?: string }[] = [
-    { name: "Line Text", value: "LEGENDA WRITE ✓" },
     { name: "Background Opacity", value: 100 },
-    { name: "Text Color", value: ppro.Color(1, 0, 0, 1), note: "assuming 0–1 float RGBA" },
+    { name: "Text Color", value: ppro.Color(1, 0, 0, 1), note: "0–1 float RGBA" },
   ];
 
   const out: string[] = [`capsule params: ${params.map((p) => p.name).join(", ")}`, ""];
