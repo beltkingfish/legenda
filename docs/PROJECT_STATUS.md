@@ -2,7 +2,8 @@
 
 Update this at the end of any session with meaningful changes (see CLAUDE.md → Update ritual).
 
-Current phase: **Phase 1 — steps 1–9 done and verified live. Next: step 10 (overrides).**
+Current phase: **Phase 1 — step 10 built (last build step); awaiting live check.
+Then Phase 1 closes with the teleprompter template + template v2 authoring.**
 Last updated: 2026-07-03.
 
 ## Done
@@ -231,8 +232,25 @@ Last updated: 2026-07-03.
 - 2026-07-03 — **Step 9 verified live** after the action-scoping fix: full generate
   completes again; timing warnings show exact copy and never block; settings apply.
 
+- 2026-07-03 — Step 10 built: per-line overrides (UI_COMPONENTS §5). The line
+  preview is now the per-caption editor: click a line → color override (hex) +
+  italic toggle + "Clear overrides on this line" (exact copy); overridden lines get
+  an accent marker. Overrides live OFF the derived lines in a store keyed by word
+  range (`src/overrides.ts`): they survive re-wraps when the line's word range is
+  unchanged, drop otherwise (never restyle different words), and are re-applied on
+  every regenerate — persisting through global style changes per SPECIFICATION §7.
+  Color rides the per-line patch (override merged into template values); italic
+  writes `fontFSItalicValue` (control + per-run capParam array). 69 tests.
+
 ## In progress
-- (none)
+- Manual check (needs Premiere): select a line → set color #FF3333 + italic →
+  Generate → that caption renders red (and italic if faux styles work); switch
+  preset → Apply to all → override persists; Clear overrides → regenerate → gone;
+  change wrap width → overrides on unchanged ranges survive, others drop.
+  **Known risk (pre-flagged)**: template was exported with
+  `capPropFontFauxStyleEdit: false` — italic may be inert until a template
+  re-export with "Enable Faux Styles" checked in the EG panel (5-minute AE task;
+  color override is unaffected either way).
 
 ## Next (Phase 1 build order)
 10. Line-level color/italic override (color: per-line patch value; italic:

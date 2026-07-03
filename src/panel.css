@@ -173,9 +173,30 @@ body {
 
 .line-preview li {
   display: block;
-  padding: 3px 0;
+  padding: 3px 0 3px 6px;
   border-bottom: 1px solid var(--border);
+  border-left: 2px solid transparent;
   line-height: 1.4;
+  cursor: pointer;
+}
+
+.line-preview li.is-selected {
+  background-color: var(--bg-control);
+}
+
+.line-preview li.has-override {
+  border-left-color: var(--accent);
+}
+
+.override-editor {
+  display: none;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.override-editor.is-visible {
+  display: block;
 }
 
 .line-time {

@@ -28,6 +28,8 @@ function makeDefinition() {
           fontSizeEditValue: 96,
           fontFSItalicValue: false,
         },
+        // (real template also carries fontFSItalicValue in the capParam —
+        // added below)
       },
       { id: "id-tc", uiName: { strDB: [{ str: "Text Color" }] }, value: [1, 1, 1, 1] },
       { id: "id-bg", uiName: { strDB: [{ str: "Background" }] }, value: true },
@@ -47,6 +49,7 @@ function makeDefinition() {
               textEditValue: DEFAULT_TEXT,
               fontEditValue: ["Montserrat-Bold"],
               fontSizeEditValue: [96],
+              fontFSItalicValue: [false],
               fontTextRunLength: [DEFAULT_TEXT.length],
             },
             { capPropMatchName: "id-tc", capPropUIName: "Text Color", capPropDefault: [1, 1, 1, 1] },
@@ -140,6 +143,28 @@ test("style run length follows the patched text (found live: mixed styling past 
   );
   const textParam = definition.sourceInfoLocalized.en_US.capsuleparams.capParams[0];
   assert.deepEqual(textParam.fontTextRunLength, [longText.length]);
+});
+
+test("italic override writes fonteditinfo and the per-run italic array", () => {
+  const { definition } = parseResult(
+    patchTemplate(loadTemplate(makeMogrt()), {
+      text: "Hi",
+      label: "L1",
+      style: { ...TEST_STYLE, italic: true },
+    })
+  );
+  assert.equal(definition.clientControls[0].fonteditinfo?.fontFSItalicValue, true);
+  const textParam = definition.sourceInfoLocalized.en_US.capsuleparams.capParams[0];
+  assert.deepEqual(textParam.fontFSItalicValue, [true]);
+});
+
+test("style without italic writes explicit false (deterministic per-line files)", () => {
+  const { definition } = parseResult(
+    patchTemplate(loadTemplate(makeMogrt()), { text: "Hi", label: "L1", style: TEST_STYLE })
+  );
+  assert.equal(definition.clientControls[0].fonteditinfo?.fontFSItalicValue, false);
+  const textParam = definition.sourceInfoLocalized.en_US.capsuleparams.capParams[0];
+  assert.deepEqual(textParam.fontFSItalicValue, [false]);
 });
 
 test("style application writes fonteditinfo and per-run font arrays", () => {

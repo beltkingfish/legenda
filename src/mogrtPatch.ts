@@ -42,6 +42,7 @@ interface CapParam {
   /** Per-text-run arrays on the text param. */
   fontEditValue?: string[];
   fontSizeEditValue?: number[];
+  fontFSItalicValue?: boolean[];
   /** Characters covered by each style run — MUST match the patched text
       length, or trailing characters render with fallback styling
       (found live 2026-07-03: mixed-weight captions past char 19). */
@@ -148,9 +149,11 @@ function applyStyle(definition: DefinitionJson, style: TemplateStyleValues): voi
   setSimpleControl(definition, "Shadow Opacity", style.shadowOpacity);
 
   const lineText = findControl(definition, LINE_TEXT);
+  const italic = style.italic ?? false;
   if (lineText?.fonteditinfo) {
     lineText.fonteditinfo.fontEditValue = style.fontName;
     lineText.fonteditinfo.fontSizeEditValue = style.fontSize;
+    lineText.fonteditinfo.fontFSItalicValue = italic;
   }
   for (const param of capParamsOf(definition, LINE_TEXT)) {
     if (Array.isArray(param.fontEditValue)) {
@@ -158,6 +161,9 @@ function applyStyle(definition: DefinitionJson, style: TemplateStyleValues): voi
     }
     if (Array.isArray(param.fontSizeEditValue)) {
       param.fontSizeEditValue = param.fontSizeEditValue.map(() => style.fontSize);
+    }
+    if (Array.isArray(param.fontFSItalicValue)) {
+      param.fontFSItalicValue = param.fontFSItalicValue.map(() => italic);
     }
   }
 }
