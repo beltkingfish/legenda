@@ -1,8 +1,216 @@
-# MOGRT AUTHORING — step-by-step recipe (fade v1)
+# MOGRT AUTHORING — step-by-step recipes
 
-Companion to MOGRT_SPEC.md (the contract). This is the hands-on After Effects
-recipe for `mogrt/legenda-fade-v1.mogrt`. Written for AE 2024+; expressions use
-the JavaScript engine. Last updated: 2026-07-02.
+Companion to MOGRT_SPEC.md (the contract). Hands-on After Effects recipes.
+Written for AE 2024+; expressions use the JavaScript engine.
+Last updated: 2026-07-03.
+
+Recipes in build order:
+- **§A** `legenda-fade-COLORTEST` — 5-minute throwaway experiment (per-word
+  color gate). Do this first; its verdict may add one step to §B.
+- **§B** `legenda-fade-v2` — transition ramp (makes the Timing field live),
+  outline, faux styles. Start from the v1 project.
+- **§C** `legenda-teleprompter-v1` — the second animation style
+  (MOGRT_SPEC strategy 1: two instances per line).
+- **§1–9 below** — the original fade v1 recipe (kept for reference; v2 builds
+  on this comp).
+
+---
+
+## §A. legenda-fade-COLORTEST (5 minutes, throwaway)
+
+**Question it answers:** does AE's MOGRT exporter emit a per-text-run COLOR
+field in definition.json when the authored text mixes fill colors? (The
+shipped template's serialization has none — MOGRT_SPEC "Per-text-run
+styling".) Yes ⇒ per-word color patches like per-word italic. No ⇒ the patch
+route for per-word color is closed and we make a spec call.
+
+1. Open `mogrt_build.aep`. **File → Save As** → `mogrt_colortest.aep`
+   (protect the v1 source — do not export over `mogrt/legenda-fade-v1.mogrt`).
+2. In the comp, select **Caption Text**. With the **Type tool, double-click
+   the middle word only** (`text` in "Line text goes here") so just that word
+   is highlighted.
+3. Character panel → set the **fill color to pure red `FF0000`** for that
+   selection. Deselect. (The Premiere render would still look white — the
+   Fill effect flattens glyph color — that's fine; only the exported JSON
+   matters here.)
+4. Essential Graphics panel → **Export Motion Graphics Template…** →
+   Local Drive → **Desktop** → name `legenda-fade-COLORTEST`.
+5. Drop the file path in chat. The diff against v1's definition.json is the
+   verdict; the .aep and .mogrt can be deleted afterwards.
+
+---
+
+## §B. legenda-fade-v2 (start from the v1 project)
+
+Goals: (1) `Transition (ms)` slider driving the fade ramps — turns the
+panel's inert Transition duration field live, and doubles as EXPERIMENTS
+EXP-001's gate (an expression-driven exposed param changing animation
+timing); (2) outline via layer-style Stroke (needed by the Minimal preset);
+(3) faux styles enabled at author time. **Deliberately NOT in v2:**
+- *Line height* — one instance renders ONE line; leading has no visible
+  effect on single-line point text. Carried in StyleDef for a multi-line
+  future, meaningless to expose now.
+- *Letter spacing* — the only route is a text-style expression on Source
+  Text, and a returned style applies to the WHOLE text: it would flatten the
+  per-run arrays that make per-word italic work (proven live 2026-07-03).
+  Not worth trading a shipped feature for. Stays deferred.
+- *Alignment* — all three presets are centered and paragraph alignment is
+  not expression-drivable. Stays deferred.
+
+### B0. Setup
+- Open `mogrt_build.aep` → **File → Save As** → `mogrt_build_v2.aep` (commit
+  this alongside the export; v1's source stays untouched).
+- Rename the comp **"Legenda Fade v2"** (Project panel → Enter). The EG
+  panel's Name field should read `Legenda Fade v2` too.
+- On the **Controls** layer, set the `Legenda Version` slider to **2**.
+
+### B1. Transition slider + expression-driven fade
+1. On **Controls**, add a **Slider Control**, rename the effect instance
+   **`Transition (ms)`** (exact — it's patched by this name), value **150**.
+2. On **Caption Text → Transform → Opacity**: **delete all four keyframes**,
+   then Alt-click the stopwatch and paste:
+   ```js
+   const ms = thisComp.layer("Controls").effect("Transition (ms)")("Slider");
+   const d = Math.max(ms / 1000, framesToTime(1)); // never a zero-length ramp
+   const fadeIn = linear(time, inPoint, inPoint + d, 0, 100);
+   const fadeOut = linear(time, outPoint - d, outPoint, 100, 0);
+   Math.min(fadeIn, fadeOut)
+   ```
+   (The background bar needs no change — its opacity expression already
+   follows the text layer's post-expression opacity.)
+3. **Widen the protected regions** so user-chosen ramps play unstretched:
+   drag the Intro region's right edge to **frame 15** and the Outro region's
+   left edge to **frame 105** (= 500 ms each @ 30 fps). Constraint to note:
+   transitions **> 500 ms** will render time-stretched in the middle zone —
+   acceptable; the WCAG recommendation is 100–200 ms.
+4. Scrub: fade should ramp over 5 frames at slider 150; set the slider to
+   500 and confirm the ramp widens. Set it back to **150**.
+
+### B2. Outline (layer-style Stroke — no text-style expressions, so per-run
+### italic styling is untouched)
+1. On **Controls**, add: **Slider Control** → rename **`Outline Width`**,
+   value **0** (0 = off — same no-checkbox pattern as the opacities; range
+   0–32); **Color Control** → rename **`Outline Color`**, black.
+2. Select **Caption Text** → **Layer → Layer Styles → Stroke**. In the
+   layer's Layer Styles → Stroke: set **Position: Outside**, then Alt-click
+   the stopwatches and paste:
+   - **Size**: `thisComp.layer("Controls").effect("Outline Width")("Slider")`
+   - **Color**: `thisComp.layer("Controls").effect("Outline Color")("Color")`
+   (Layer styles render AFTER effects, so the Fill effect's flat text color
+   stays inside the stroke. AE px are UHD: preset width 2 patches as 4.)
+3. Set `Outline Width` to 4 to eyeball it, then back to **0**.
+4. **Checkpoint** — if a layer-style property refuses an expression or the
+   stroke misrenders, stop here and report; the fallback design changes and
+   guessing wastes an export cycle.
+
+### B3. Faux styles at author time
+- In the EG panel select **Line Text** → **Edit Properties…** → alongside
+  Custom Font Selection + Font Size Adjustment, also check **Faux Styles**
+  (exports `capPropFontFauxStyleEdit: true`, so the patcher's gate flip
+  becomes belt-and-braces rather than load-bearing).
+
+### B4. EG panel additions and export
+- Add to the panel (drag → rename to the EXACT name):
+  | Drag this | Rename EG entry to |
+  | --- | --- |
+  | Controls → Transition (ms) (slider) | `Transition (ms)` |
+  | Controls → Outline Width (slider) | `Outline Width` |
+  | Controls → Outline Color (color) | `Outline Color` |
+- Keep every v1 entry (including the `Background` checkbox — the patch
+  channel drives checkboxes, the old drop-decision is cancelled; see
+  MOGRT_SPEC). Keep `Legenda Version` last. Slider ranges: Transition (ms)
+  0–1000, Outline Width 0–32.
+- Export → Local Drive → this repo's `mogrt/` → **`legenda-fade-v2`**.
+  Commit `legenda-fade-v2.mogrt` + `mogrt_build_v2.aep`; v1 stays shipped
+  until v2 passes live checks (renderer keeps pointing at v1 until the
+  plugin work lands).
+
+### B5. Live checks (with the plugin, after my renderer/patcher update)
+- Transition 150 vs 500 ms visibly differ on generated captions (EXP-001
+  gate ✓/✗). Minimal preset renders its 2 px outline. Per-word italic still
+  renders (nothing regressed the run arrays).
+
+---
+
+## §C. legenda-teleprompter-v1 (strategy 1: two instances per line)
+
+Spec behavior (SPECIFICATION §4): two lines visible; a new line blurs in at
+the bottom; the previous line sits above it; the line leaving the top blurs +
+fades out. Strategy 1 (MOGRT_SPEC): **each caption line gets TWO instances**
+— `Top Row` unchecked during its own slot (bottom position), checked during
+the NEXT line's slot (top position). The "push" is a cut at the slot
+boundary, masked because EVERY instance blurs in and blurs out. Renderer
+note (plugin side, not yours): top-row instances overlap bottom-row ones in
+time, so they land on a SECOND plugin-owned track.
+
+### C0. Comp
+- In `mogrt_build_v2.aep` (after §B): duplicate the **Legenda Fade v2** comp
+  (Project panel → Ctrl/Cmd+D), rename **"Legenda Teleprompter v1"**. Keep
+  everything — the rig below edits the copy. Set `Legenda Version` to **1**
+  (it versions THIS template). EG panel: point it at the new comp, Name
+  `Legenda Teleprompter v1`.
+
+### C1. Row switch
+- On **Controls**, add a **Checkbox Control** → rename **`Top Row`**,
+  unchecked.
+
+### C2. Position by row
+- **Caption Text → Transform → Position**, Alt-click stopwatch:
+  ```js
+  const top = thisComp.layer("Controls").effect("Top Row")("Checkbox");
+  top == 1 ? [1920, 1710] : [1920, 1880]
+  ```
+  (170 UHD px of row spacing keeps the two background bars from overlapping
+  at 96 px type; tune to taste after a render. The bar follows automatically
+  — its position expression tracks the text layer.)
+
+### C3. Blur ramps (the push mask + the spec's blur in/out)
+- **Caption Text** → Effect → Blur & Sharpen → **Gaussian Blur**; check
+  **Repeat Edge Pixels**. Alt-click **Blurriness**:
+  ```js
+  const B = 32;
+  const blurIn = linear(time, inPoint, inPoint + framesToTime(5), B, 0);
+  const blurOut = linear(time, outPoint - framesToTime(5), outPoint, 0, B);
+  Math.max(blurIn, blurOut)
+  ```
+  Identical for both rows on purpose: bottom-instance blur-out + top-instance
+  blur-in together mask the boundary cut; bottom blur-in = the incoming line
+  resolving into focus; top blur-out = the leaving line defocusing.
+
+### C4. Opacity by row (replace the §B expression on this comp)
+- **Caption Text → Transform → Opacity** — replace the expression with:
+  ```js
+  const top = thisComp.layer("Controls").effect("Top Row")("Checkbox");
+  const f = framesToTime(5);
+  const fadeIn = top == 1 ? 100 : linear(time, inPoint, inPoint + f, 0, 100);
+  const fadeOut = top == 1 ? linear(time, outPoint - f, outPoint, 100, 0) : 100;
+  Math.min(fadeIn, fadeOut)
+  ```
+  Bottom instances fade IN only (the line "continues" upward, so no fade-out
+  at the cut); top instances fade OUT only. Fixed 5-frame (≈150 ms) masks in
+  this v1 — no `Transition (ms)` here yet; keep the slider out of the EG
+  panel for this template (remove it if the duplicate carried it over).
+
+### C5. Protected regions + EG + export
+- Protected regions back to tight: Intro ends **frame 5**, Outro starts
+  **frame 114** (the masks are fixed-length; wide regions would only
+  squeeze short captions).
+- EG panel entries = the v1 Tier-1/2 set (Line Text, Text Color, Background,
+  Background Color, Background Opacity, Shadow Opacity, Legenda Version)
+  **plus `Top Row`** (drag the checkbox; exact name). Faux Styles checked on
+  Line Text as in §B3. No Transition, no Outline in this template's v1.
+- Export → `mogrt/legenda-teleprompter-v1.mogrt`; commit with the .aep.
+
+### C6. What "good" looks like (eyeball in AE before exporting)
+- Preview with `Top Row` OFF: line blurs in at the bottom, sits sharp,
+  defocuses at the end without fading.
+- Toggle `Top Row` ON: line sits sharp at the upper position, then blurs AND
+  fades out at the end.
+- Imagine them butted at a cut: defocus-at-bottom → refocus-at-top reads as
+  the push. If it reads as a flicker instead, the fallback is strategy 2
+  (MOGRT_SPEC) — report before re-rigging.
+
+---
 
 ## 0. Prerequisites
 - Activate **Montserrat** (Bold; also ExtraBold + SemiBold for the other presets)

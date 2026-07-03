@@ -9,8 +9,9 @@ in the same change. Last updated: 2026-07-02.
 ## Files
 | File | Animation | Status |
 | --- | --- | --- |
-| `mogrt/legenda-fade-v1.mogrt` | Fade | to author (first) |
-| `mogrt/legenda-teleprompter-v1.mogrt` | Teleprompter | to author (after fade proves the pipeline) |
+| `mogrt/legenda-fade-v1.mogrt` | Fade | **shipped** (renderer default) |
+| `mogrt/legenda-fade-v2.mogrt` | Fade + transition ramp + outline | recipe ready (MOGRT_AUTHORING §B) |
+| `mogrt/legenda-teleprompter-v1.mogrt` | Teleprompter | recipe ready (MOGRT_AUTHORING §C) |
 
 One MOGRT instance renders **one caption line**. The plugin inserts an instance per
 line on the plugin-owned track, trims it to the line's duration, and sets the
@@ -27,12 +28,14 @@ exposed parameters. All animation lives inside the template (ARCHITECTURE §2.3)
 | `Background Color` | color (shape fill) | `background.color` | |
 | `Background Opacity` | slider 0–100 | `background.opacity` (×100); `0` ⇒ `background.enabled: false` — **no checkbox** | See note below. |
 
-**No `Background` checkbox.** The probe (2026-07-02) showed a checkbox param
-surfaces with an **empty displayName** — unmatchable by our name-based lookup.
-So background on/off is encoded the same way as shadow/outline: `Background
-Opacity` `0` means off. Template's bg-opacity expression drops the checkbox
-factor. (Fold into the next fade export; the current template still works for
-everything except driving the checkbox by name.)
+**`Background` checkbox — decision reversed (2026-07-03).** The probe
+(2026-07-02) showed checkbox params surface with an empty displayName —
+unmatchable via the ComponentParam API — and we planned to drop the checkbox.
+The PATCH channel made that moot: checkboxes are matched by `uiName` in
+definition.json and drivable at patch time (proven live, step 8). The shipped
+v1 kept the checkbox and the renderer drives it; **v2 keeps it too**. (The
+empty-displayName limitation still holds for any future ComponentParam-path
+work — recorded here for that case.)
 
 ### Tier 2 — desired (native EG exposure exists; add after Tier 1 works)
 | Display name (exact) | EG control | Maps to StyleDef |
@@ -41,17 +44,30 @@ everything except driving the checkbox by name.)
 | `Font Size` | font size (Source Text → Edit Properties) | `typography.fontSize` |
 | `Shadow Opacity` | slider 0–100 (Drop Shadow effect's Opacity) | `dropShadow.opacity` (×100); `0` ⇒ `dropShadow.enabled: false` — no separate checkbox |
 
-### Tier 3 — deferred (not in v1; renderer must tolerate their absence)
-- `Outline Width` / `Outline Color` (needs text style expressions —
-  `setApplyStroke`/`setStrokeWidth` — fragile alongside EG-editable text; width `0`
-  ⇒ disabled, no checkbox), `Letter Spacing` (same style-expression route),
-  `Line Height` (leading exposure from EG is uncertain), text `Alignment`
-  (paragraph alignment is not directly exposable), background `cornerRadius` /
-  `paddingX` / `paddingY` (bake preset-typical values into the template),
-  shadow blur/distance, per-word italic/color slots (Phase 2, ARCHITECTURE §9),
-  `Transition (ms)` as a slider driving animation timing via expressions —
-  author fade v1 with a **fixed ≈150 ms (5 frames @ 30 fps)** intro/outro first;
-  attempt the expression-driven slider only once the fixed version works end to end.
+### Fade v2 exposures (recipe: MOGRT_AUTHORING §B; renderer must tolerate absence on v1)
+| Display name (exact) | EG control | Maps to | Notes |
+| --- | --- | --- | --- |
+| `Transition (ms)` | slider 0–1000, default 150 | `TimingSettings.transitionMs` | Expression-driven opacity ramps; protected regions widened to 500 ms each, so >500 ms ramps render time-stretched. This IS the EXPERIMENTS EXP-001 gate. |
+| `Outline Width` | slider 0–32, default 0 | `outline.width` (×designScale); `0` ⇒ `outline.enabled: false` — no checkbox | Layer-style Stroke (Outside), NOT text-style expressions — a returned text style would flatten the per-run arrays that per-word italic rides. |
+| `Outline Color` | color control | `outline.color` | |
+| `Legenda Version` | slider, value **2** | — | |
+
+Also authored into v2: **Faux Styles enabled** on Line Text's EG properties
+(exports `capPropFontFauxStyleEdit: true`; the patcher's per-line gate flip
+becomes redundant-but-harmless).
+
+**Deliberately NOT in v2** (decided 2026-07-03): `Line Height` — one instance
+renders one line; leading has no visible effect on single-line point text
+(StyleDef carries it for a multi-line future). `Letter Spacing` — only
+reachable via a text-style expression on Source Text, which applies one style
+to the whole text and would flatten per-run italic (a shipped feature); stays
+deferred. `Alignment` — all presets center; paragraph alignment is not
+expression-drivable; stays deferred.
+
+### Tier 3 — still deferred
+- Background `cornerRadius` / `paddingX` / `paddingY` (preset-typical values
+  baked into the template), shadow blur/distance, per-word color slots
+  (gated on the §A COLORTEST experiment — see "Per-text-run styling" note).
 
 ## Animation behavior
 
@@ -73,10 +89,13 @@ The hard problem: a line is on screen across *two* consecutive line-slots
 instance cannot key the push at a fixed offset from its in/out points.
 Candidate strategies, to be prototyped in this order:
 1. **Two instances per line** — same text inserted twice: once as `Row: Bottom`
-   (own slot) and once as `Row: Top` (next line's slot), with `Row` exposed as
-   a dropdown/checkbox. The "push" is a cut masked by the blur-out/blur-in
-   ramps at the boundary. Doubles instance count; renderer already knows both
-   time ranges.
+   (own slot) and once as `Row: Top` (next line's slot), with **`Top Row`
+   exposed as a checkbox** (exact name; patch channel drives checkboxes). The
+   "push" is a cut masked by the blur-out/blur-in ramps at the boundary
+   (recipe: MOGRT_AUTHORING §C). Doubles instance count; renderer already
+   knows both time ranges. **Renderer consequence: top-row instances overlap
+   bottom-row ones in time ⇒ a SECOND plugin-owned track** (insert-split
+   semantics forbid overlap on one track).
 2. **Single instance spanning two slots** with the push authored at the start
    of the outro protected region. Only works if the outro can carry the
    full push+top+exit phase with acceptable distortion under time-stretch.
