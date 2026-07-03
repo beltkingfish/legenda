@@ -2,7 +2,7 @@
 
 Update this at the end of any session with meaningful changes (see CLAUDE.md → Update ritual).
 
-Current phase: **Phase 1 — step 8 built; awaiting live check of styled generates.**
+Current phase: **Phase 1 — steps 1–8 done and verified live. Next: step 9 (timing panel).**
 Last updated: 2026-07-03.
 
 ## Done
@@ -190,10 +190,16 @@ Last updated: 2026-07-03.
   the plugin in UDT — the sliver test WAS running the seconds-level fix, so frame
   snapping is confirmed as the real mechanism, not stale-build noise.)
 
+- 2026-07-03 — **Step 8 stress-verified**: after the frame-grid fix, a dozen
+  consecutive style-change + Apply-to-all regeneration cycles succeeded with no
+  sliver recurrence reported.
+- 2026-07-03 — **Crash #2** (suspected near "Apply to all", but the 12× stress test
+  afterwards passed — not reproducible on demand). Maintainer will capture the macOS
+  crash report file on the next occurrence; the crashed-thread stack will
+  distinguish our-API-usage from Premiere-internal causes.
+
 ## In progress
-- Manual re-check: Clear → Generate → zoom the caption track end-to-end → no
-  slivers; sequence end == last caption end. Crash from yesterday: not yet
-  reproduced — keep watching.
+- (none)
 
 ## Next (Phase 1 build order)
 8. Style panel (Clean/Bold/Minimal) + global "apply to all" (style params via the
