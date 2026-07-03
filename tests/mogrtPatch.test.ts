@@ -4,7 +4,7 @@
 // (capPropDefault/textEditValue) — the two fields the step-6 saga was about.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { strFromU8, unzipSync, zipSync } from "fflate";
+import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 
 import { loadTemplate, patchTemplateText } from "../src/mogrtPatch";
 
@@ -40,7 +40,7 @@ function makeDefinition(): object {
 
 function makeMogrt(definition: object = makeDefinition()): Uint8Array {
   return zipSync({
-    "definition.json": new TextEncoder().encode(JSON.stringify(definition)),
+    "definition.json": strToU8(JSON.stringify(definition)),
     "project.aegraphic": new Uint8Array([1, 2, 3, 4, 5]),
     "thumb.png": new Uint8Array([9, 8, 7]),
   });

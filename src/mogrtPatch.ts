@@ -10,7 +10,9 @@
 //   - the embedded AE project needs NO changes (confirmed live).
 // Pure logic — no Premiere APIs — so it is unit-tested in tests/.
 
-import { unzipSync, zipSync } from "fflate";
+// strToU8/strFromU8: Premiere's UXP runtime has no TextEncoder/TextDecoder
+// globals (confirmed live 2026-07-02) — fflate's helpers cover UTF-8.
+import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 
 interface StrDbEntry {
   localeString?: string;
@@ -41,7 +43,7 @@ const DEFINITION = "definition.json";
 const LINE_TEXT = "Line Text";
 
 function decodeJson(bytes: Uint8Array): DefinitionJson {
-  return JSON.parse(new TextDecoder().decode(bytes)) as DefinitionJson;
+  return JSON.parse(strFromU8(bytes)) as DefinitionJson;
 }
 
 /** Find the Line Text control's current value — also a contract check. */
@@ -103,6 +105,6 @@ export function patchTemplateText(
   }
 
   const entries: Record<string, Uint8Array> = { ...template.entries };
-  entries[DEFINITION] = new TextEncoder().encode(JSON.stringify(definition));
+  entries[DEFINITION] = strToU8(JSON.stringify(definition));
   return zipSync(entries, { level: 6 });
 }

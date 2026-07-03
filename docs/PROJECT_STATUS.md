@@ -333,6 +333,11 @@ Last updated: 2026-07-02.
   word tokens with NO `text` field (observed segments[0].words[44] on an interview
   transcript, 2026-07-02). Parser skips such tokens and reports a count
   (`meta.skippedTokens`) instead of failing the import.
+- Premiere's UXP runtime has NO `TextEncoder`/`TextDecoder` globals (confirmed live:
+  "TextDecoder is not defined"). Use fflate's `strToU8`/`strFromU8` for UTF-8.
+  Nuance for the defs-gap list above: cc-ext-uxp-types omissions are sometimes
+  accurate about the runtime (this case) and sometimes not (`require`, `console`,
+  `classList`) — verify live before declaring a global in globals.d.ts.
 - UXP CSS (observed in Premiere 26.3, live): flexbox `gap` is ignored — use margins
   (fix confirmed live). Header/footer content rendered centered; `align-items: stretch`
   did NOT fix it (disproved live) — current fix sets `text-align: left`,

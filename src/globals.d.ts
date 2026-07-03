@@ -12,11 +12,6 @@ declare const console: {
   error(...args: unknown[]): void;
 };
 
-// UXP provides TextEncoder/TextDecoder at runtime; the defs omit them.
-declare class TextEncoder {
-  encode(input: string): Uint8Array;
-}
-declare class TextDecoder {
-  constructor(label?: string);
-  decode(input: ArrayBuffer | ArrayBufferView): string;
-}
+// NOTE: Premiere's UXP runtime has NO TextEncoder/TextDecoder globals
+// (confirmed live 2026-07-02) — the type defs' omission is accurate there.
+// Use fflate's strToU8/strFromU8 for UTF-8 instead.
