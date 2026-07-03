@@ -200,6 +200,7 @@ export async function generateCaptions(
       text: line.text,
       label,
       style: applyOverrideToValues(styleValues, line.override),
+      ...(line.runs ? { runs: line.runs } : {}),
     });
     const path = await writeTempFile(`legenda-line-${i + 1}.mogrt`, patched);
 
