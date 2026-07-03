@@ -2,8 +2,7 @@
 
 Update this at the end of any session with meaningful changes (see CLAUDE.md → Update ritual).
 
-Current phase: **Phase 1 — step 7 built; awaiting live check (generate on a real
-sequence). Step 6 fully resolved; patching adopted (ARCHITECTURE §3).**
+Current phase: **Phase 1 — steps 1–7 done and verified live. Next: step 8 (style panel).**
 Last updated: 2026-07-02.
 
 ## Done
@@ -141,10 +140,13 @@ Last updated: 2026-07-02.
   selection work (addItem + remove action + transaction) now runs inside the
   callback under one lock. (Now a discovered-limitations entry.)
 
+- 2026-07-02 — **Step 7 fully verified**: Clear removed 125 items (the 85 captions
+  plus accumulated probe-test debris on the track — confirming clear sweeps the
+  whole plugin track). Regeneration shares this code path with the verified
+  generate. The callback-scoped-selection fix works.
+
 ## In progress
-- Remaining live checks after the fix: **Clear captions**, then **Generate again**
-  on existing captions (should report "cleared 85 previous"); play through several
-  captions to confirm each fade plays.
+- (none)
 
 ## Next (Phase 1 build order)
 8. Style panel (Clean/Bold/Minimal) + global "apply to all" (style params via the
