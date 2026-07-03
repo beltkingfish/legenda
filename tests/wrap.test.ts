@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { CaptionWord } from "../src/model";
-import { wrapWords } from "../src/wrap";
+import { sanitizeLineTimings, wrapWords, type CaptionLine } from "../src/wrap";
 
 /** Word builder: sequential timing, 0.3s per word, 0.1s gap by default. */
 function makeWords(
@@ -110,4 +110,30 @@ test("re-wrapping with a wider budget yields fewer lines", () => {
 
 test("empty input yields no lines", () => {
   assert.deepEqual(wrapWords([], { targetLineChars: 32 }), []);
+});
+
+function makeLine(startSec: number, endSec: number, text = "x"): CaptionLine {
+  return { text, startSec, endSec, firstWord: 0, lastWord: 0 };
+}
+
+test("sanitizeLineTimings clamps overlaps to the next line's start", () => {
+  const lines = [makeLine(0, 2.5), makeLine(2.0, 4)]; // 0.5s overlap
+  const sane = sanitizeLineTimings(lines);
+  assert.equal(sane.length, 2);
+  assert.equal(sane[0].endSec, 2.0);
+  assert.equal(sane[1].endSec, 4);
+});
+
+test("sanitizeLineTimings drops lines emptied by clamping", () => {
+  const lines = [makeLine(1.0, 3.0), makeLine(1.0, 2.0)]; // second starts at first's start
+  const sane = sanitizeLineTimings(lines);
+  assert.deepEqual(
+    sane.map((l) => [l.startSec, l.endSec]),
+    [[1.0, 2.0]]
+  );
+});
+
+test("sanitizeLineTimings passes clean timings through untouched", () => {
+  const lines = [makeLine(0, 1.5), makeLine(1.5, 3), makeLine(3.2, 7)];
+  assert.deepEqual(sanitizeLineTimings(lines), lines);
 });

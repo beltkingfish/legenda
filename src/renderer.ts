@@ -17,7 +17,7 @@ import {
 import ppro from "./ppro";
 import { getActiveContext } from "./premiere";
 import { styleToTemplateValues, type StyleDef } from "./style";
-import type { CaptionLine } from "./wrap";
+import { sanitizeLineTimings, type CaptionLine } from "./wrap";
 
 /** Presets are 1080-referenced; the template comp is UHD (MOGRT_SPEC). */
 const DESIGN_SCALE = TEMPLATE_HEIGHT_PX / 1080;
@@ -69,6 +69,8 @@ export interface GenerateResult {
   cleared: number;
   trackIndex: number;
   scalePct: number;
+  /** Lines dropped by timing sanitation (zero duration after clamping). */
+  droppedLines: number;
 }
 
 /** Remove every clip item on the plugin-owned track. Returns removed count. */
@@ -157,6 +159,11 @@ export async function generateCaptions(
   if (!project || !sequence) {
     throw new Error("Open a project with an active sequence first.");
   }
+  // Overlapping line times would make inserts SPLIT earlier instances
+  // (debris cascade — see sanitizeLineTimings).
+  const plan = sanitizeLineTimings(lines);
+  const droppedLines = lines.length - plan.length;
+
   const txn = project as unknown as ProjectTxn;
   const template = await getTemplate();
   const styleValues = styleToTemplateValues(style, DESIGN_SCALE);
@@ -170,7 +177,7 @@ export async function generateCaptions(
   let inserted = 0;
   let scalePct = 100;
 
-  for (const [i, line] of lines.entries()) {
+  for (const [i, line] of plan.entries()) {
     const label = `Legenda ${String(i + 1).padStart(3, "0")}`;
     const patched = patchTemplate(template, {
       text: line.text,
@@ -191,7 +198,7 @@ export async function generateCaptions(
     ) as TrackItemLike | undefined;
     if (!item) {
       throw new Error(
-        `Insert failed at line ${i + 1} of ${lines.length} ("${line.text}") — ` +
+        `Insert failed at line ${i + 1} of ${plan.length} ("${line.text}") — ` +
           `${inserted} caption(s) were inserted before the failure.`
       );
     }
@@ -206,9 +213,9 @@ export async function generateCaptions(
 
     scalePct = await scaleItemToSequence(txn, item, frame.height);
     inserted++;
-    onProgress?.(inserted, lines.length);
+    onProgress?.(inserted, plan.length);
   }
 
   pluginTrackIndex = trackIndex;
-  return { inserted, cleared, trackIndex, scalePct };
+  return { inserted, cleared, trackIndex, scalePct, droppedLines };
 }

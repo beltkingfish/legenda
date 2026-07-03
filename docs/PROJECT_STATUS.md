@@ -167,12 +167,22 @@ Last updated: 2026-07-03.
   85-item insert/remove cycles, panel input handling). Collect exact steps if it
   recurs.
 
+- 2026-07-03 — **Run-length fix verified live**: Bold/Minimal apply uniformly across
+  entire lines (screenshots). Regeneration reported "(cleared 56 previous)" ✓;
+  checkbox/select controls render fine; swatch wrap is a cosmetic nit.
+- 2026-07-03 — **Debris bug found & fixed**: ~1-frame sliver clips accumulated on the
+  caption track (clear counted 56 items for a 38-line generate ⇒ 18 slivers; sequence
+  end stretched past footage). Cause: line times can OVERLAP (punctuation-merge can
+  extend a word's end past the next word's start; crosstalk), and insert semantics
+  SPLIT any instance spanning the insert point — the split tail then cascades right
+  with every subsequent insert. Fix: `sanitizeLineTimings` (pure, tested) clamps each
+  line's end to the next line's start and drops emptied lines before insertion;
+  Generate reports skipped zero-length lines.
+
 ## In progress
-- Manual re-check after the run-length fix: Bold/Minimal presets → Apply to all →
-  confirm EVERY caption is fully styled end to end (especially lines longer than
-  19 characters). Also note any repeat of the crash and what preceded it.
-  Cosmetic: color swatch can wrap to its own line (first `<select>`/checkbox
-  rendering otherwise OK per screenshots).
+- Manual re-check: Generate on a fresh/cleared track → NO sliver clips anywhere on
+  the caption track, sequence end matches the last caption. Crash from yesterday:
+  not yet reproduced — keep watching.
 
 ## Next (Phase 1 build order)
 8. Style panel (Clean/Bold/Minimal) + global "apply to all" (style params via the

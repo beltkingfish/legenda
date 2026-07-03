@@ -339,7 +339,10 @@ async function onGenerateClick(): Promise<void> {
     generateStatus.textContent =
       `Generated ${result.inserted} caption(s) on video track ${result.trackIndex + 1}` +
       (result.cleared > 0 ? ` (cleared ${result.cleared} previous)` : "") +
-      ` · scaled to ${result.scalePct.toFixed(1)}%`;
+      ` · scaled to ${result.scalePct.toFixed(1)}%` +
+      (result.droppedLines > 0
+        ? ` · ${result.droppedLines} zero-length line(s) skipped`
+        : "");
   } catch (err) {
     generateStatus.className = "hint is-error";
     generateStatus.textContent = `Generate failed: ${errorText(err)}`;
