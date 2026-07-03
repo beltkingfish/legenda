@@ -49,9 +49,13 @@ function makeDefinition() {
               capPropDefault: DEFAULT_TEXT,
               textEditValue: DEFAULT_TEXT,
               capPropFontFauxStyleEdit: false,
+              capPropTextRunCount: 1,
               fontEditValue: ["Montserrat-Bold"],
               fontSizeEditValue: [96],
               fontFSItalicValue: [false],
+              fontFSBoldValue: [false],
+              fontFSAllCapsValue: [false],
+              fontFSSmallCapsValue: [false],
               fontTextRunLength: [DEFAULT_TEXT.length],
             },
             { capPropMatchName: "id-tc", capPropUIName: "Text Color", capPropDefault: [1, 1, 1, 1] },
@@ -185,6 +189,83 @@ test("style application writes fonteditinfo and per-run font arrays", () => {
   const textParam = definition.sourceInfoLocalized.en_US.capsuleparams.capParams[0];
   assert.deepEqual(textParam.fontEditValue, ["Montserrat-ExtraBold"]);
   assert.deepEqual(textParam.fontSizeEditValue, [120]);
+});
+
+test("multi-run patch writes boundaries, per-run italics, and opens the gate", () => {
+  const text = "the quick fox"; // runs: "the " | "quick " | "fox"
+  const { definition } = parseResult(
+    patchTemplate(loadTemplate(makeMogrt()), {
+      text,
+      label: "L1",
+      style: TEST_STYLE,
+      runs: [
+        { length: 4, italic: false },
+        { length: 6, italic: true },
+        { length: 3, italic: false },
+      ],
+    })
+  );
+  const param = definition.sourceInfoLocalized.en_US.capsuleparams.capParams[0];
+  assert.equal(param.capPropTextRunCount, 3);
+  assert.deepEqual(param.fontTextRunLength, [4, 6, 3]);
+  assert.deepEqual(param.fontFSItalicValue, [false, true, false]);
+  // Carry arrays expand to the run count with the style-written value.
+  assert.deepEqual(param.fontEditValue, [
+    "Montserrat-ExtraBold",
+    "Montserrat-ExtraBold",
+    "Montserrat-ExtraBold",
+  ]);
+  assert.deepEqual(param.fontSizeEditValue, [120, 120, 120]);
+  assert.deepEqual(param.fontFSBoldValue, [false, false, false]);
+  assert.equal(param.capPropFontFauxStyleEdit, true); // gate opened
+  const info = definition.clientControls[0].fonteditinfo;
+  assert.equal(info?.capPropFontFauxStyleEdit, true);
+  // Mixed runs → the whole-text scalar is NOT italic.
+  assert.equal(info?.fontFSItalicValue, false);
+});
+
+test("uniformly italic runs set the whole-text scalar too", () => {
+  const { definition } = parseResult(
+    patchTemplate(loadTemplate(makeMogrt()), {
+      text: "Hi yo",
+      label: "L1",
+      runs: [
+        { length: 3, italic: true },
+        { length: 2, italic: true },
+      ],
+    })
+  );
+  assert.equal(definition.clientControls[0].fonteditinfo?.fontFSItalicValue, true);
+  const param = definition.sourceInfoLocalized.en_US.capsuleparams.capParams[0];
+  assert.deepEqual(param.fontFSItalicValue, [true, true]);
+});
+
+test("runs without style expand the authored carry values", () => {
+  const { definition } = parseResult(
+    patchTemplate(loadTemplate(makeMogrt()), {
+      text: "Hi yo",
+      label: "L1",
+      runs: [
+        { length: 3, italic: false },
+        { length: 2, italic: true },
+      ],
+    })
+  );
+  const param = definition.sourceInfoLocalized.en_US.capsuleparams.capParams[0];
+  assert.deepEqual(param.fontEditValue, ["Montserrat-Bold", "Montserrat-Bold"]);
+  assert.deepEqual(param.fontSizeEditValue, [96, 96]);
+});
+
+test("runs that do not span the text exactly are rejected", () => {
+  assert.throws(
+    () =>
+      patchTemplate(loadTemplate(makeMogrt()), {
+        text: "Hello world",
+        label: "L1",
+        runs: [{ length: 5, italic: true }],
+      }),
+    /span the caption text exactly/
+  );
 });
 
 test("without style, authored defaults stay untouched", () => {

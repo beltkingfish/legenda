@@ -14,7 +14,7 @@
 // globals (confirmed live 2026-07-02) — fflate's helpers cover UTF-8.
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 
-import type { TemplateStyleValues } from "./style";
+import type { StyleRun, TemplateStyleValues } from "./style";
 
 interface StrDbEntry {
   localeString?: string;
@@ -42,10 +42,15 @@ interface CapParam {
   capPropUIName?: string;
   capPropDefault?: unknown;
   capPropFontFauxStyleEdit?: boolean;
-  /** Per-text-run arrays on the text param. */
+  /** Number of text runs — must equal the per-run arrays' length. */
+  capPropTextRunCount?: number;
+  /** Per-text-run PARALLEL arrays on the text param (one entry per run). */
   fontEditValue?: string[];
   fontSizeEditValue?: number[];
   fontFSItalicValue?: boolean[];
+  fontFSBoldValue?: boolean[];
+  fontFSAllCapsValue?: boolean[];
+  fontFSSmallCapsValue?: boolean[];
   /** Characters covered by each style run — MUST match the patched text
       length, or trailing characters render with fallback styling
       (found live 2026-07-03: mixed-weight captions past char 19). */
@@ -180,6 +185,57 @@ function applyStyle(definition: DefinitionJson, style: TemplateStyleValues): voi
   }
 }
 
+/**
+ * Arrays that carry ONE value for the whole caption but must stay parallel
+ * to fontTextRunLength — expanded to the run count by repeating their first
+ * entry. (fontTextRunLength and fontFSItalicValue are written per run.)
+ */
+const PER_RUN_CARRY_KEYS = [
+  "fontEditValue",
+  "fontSizeEditValue",
+  "fontFSBoldValue",
+  "fontFSAllCapsValue",
+  "fontFSSmallCapsValue",
+] as const;
+
+/**
+ * Write per-text-run styling (docs/MOGRT_SPEC.md "Per-text-run styling"):
+ * run boundaries + per-run italic; every other per-run array is expanded to
+ * the run count so the arrays stay parallel. Call AFTER applyStyle so the
+ * expansion picks up style-written values.
+ */
+function applyRuns(definition: DefinitionJson, runs: StyleRun[]): void {
+  const anyItalic = runs.some((run) => run.italic);
+  const lineText = findControl(definition, LINE_TEXT);
+  if (lineText?.fonteditinfo) {
+    // The scalar mirrors the whole-text value; only uniform italics map to it.
+    lineText.fonteditinfo.fontFSItalicValue = runs.every((run) => run.italic);
+    if (anyItalic) {
+      lineText.fonteditinfo.capPropFontFauxStyleEdit = true;
+    }
+  }
+  for (const param of capParamsOf(definition, LINE_TEXT)) {
+    if (typeof param.capPropTextRunCount === "number") {
+      param.capPropTextRunCount = runs.length;
+    }
+    if (Array.isArray(param.fontTextRunLength)) {
+      param.fontTextRunLength = runs.map((run) => run.length);
+    }
+    if (Array.isArray(param.fontFSItalicValue)) {
+      param.fontFSItalicValue = runs.map((run) => run.italic);
+    }
+    for (const key of PER_RUN_CARRY_KEYS) {
+      const values = (param as Record<string, unknown>)[key];
+      if (Array.isArray(values) && values.length > 0) {
+        (param as Record<string, unknown>)[key] = runs.map(() => values[0] as unknown);
+      }
+    }
+    if (anyItalic && param.capPropFontFauxStyleEdit !== undefined) {
+      param.capPropFontFauxStyleEdit = true;
+    }
+  }
+}
+
 /** Load and validate a .mogrt template from raw bytes. */
 export function loadTemplate(bytes: Uint8Array): MogrtTemplate {
   const entries = unzipSync(bytes);
@@ -211,6 +267,12 @@ export interface PatchOptions {
   label: string;
   /** Template-unit style values; omit to keep the authored defaults. */
   style?: TemplateStyleValues;
+  /**
+   * Per-word emphasis as text runs (src/emphasis.ts). When present, the runs
+   * are authoritative for the line's italics (line-level italic is folded in
+   * by the builder); lengths must sum exactly to `text.length`.
+   */
+  runs?: StyleRun[];
 }
 
 /** Produce a patched .mogrt (as zip bytes) for one caption line. */
@@ -237,6 +299,16 @@ export function patchTemplate(
   }
   if (options.style) {
     applyStyle(definition, options.style);
+  }
+  if (options.runs) {
+    const covered = options.runs.reduce((sum, run) => sum + run.length, 0);
+    if (covered !== options.text.length) {
+      throw new Error(
+        `Style runs cover ${covered} of ${options.text.length} characters — ` +
+          "runs must span the caption text exactly."
+      );
+    }
+    applyRuns(definition, options.runs);
   }
 
   const entries: Record<string, Uint8Array> = { ...template.entries };

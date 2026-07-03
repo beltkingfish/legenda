@@ -185,6 +185,16 @@ test("planFrameTimings carries per-line overrides through to the plan", () => {
   assert.equal(plan[1].override, undefined);
 });
 
+test("planFrameTimings carries per-line style runs through to the plan", () => {
+  const runs = [
+    { length: 4, italic: false },
+    { length: 5, italic: true },
+  ];
+  const plan = planFrameTimings([{ ...makeLine(0, 1.5), runs }, makeLine(2, 3)], TPF_30);
+  assert.deepEqual(plan[0].runs, runs);
+  assert.equal(plan[1].runs, undefined);
+});
+
 test("planFrameTimings keeps starts monotonic after clamping", () => {
   // Second line starts inside the first's final frame.
   const plan = planFrameTimings([makeLine(0, 1.999), makeLine(1.98, 3)], TPF_30);

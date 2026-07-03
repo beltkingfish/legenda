@@ -199,6 +199,29 @@ body {
   display: block;
 }
 
+/* Word-emphasis chips (UI_COMPONENTS §5). UXP ignores flex `gap` — margins. */
+.word-chips {
+  margin-top: 4px;
+}
+
+.word-chip {
+  display: inline-block;
+  margin: 0 4px 4px 0;
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background-color: var(--bg-control);
+  color: var(--text);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.word-chip.is-italic {
+  font-style: italic;
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
 .line-time {
   display: inline-block;
   min-width: 84px;

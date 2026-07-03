@@ -2,8 +2,8 @@
 
 Update this at the end of any session with meaningful changes (see CLAUDE.md → Update ritual).
 
-Current phase: **Phase 1 — ALL TEN BUILD STEPS DONE and verified live.
-Remaining for phase close: teleprompter template + template v2 authoring.**
+Current phase: **Phase 2 — step 1 (per-word italic emphasis) done and verified live.
+Phase 1 close items still open: teleprompter template + template v2 authoring.**
 Last updated: 2026-07-03.
 
 ## Done
@@ -266,19 +266,57 @@ Last updated: 2026-07-03.
   per italic line works; NO template re-export needed. Overrides land on the
   exact selected line.
 
+- 2026-07-03 — **Phase 2 opened. Per-run capability findings** (full key sweep of
+  the shipped template's definition.json): the text capParam's arrays are PARALLEL
+  per-text-run arrays — `fontTextRunLength` + `capPropTextRunCount` split the text
+  into runs; `fontEditValue`/`fontSizeEditValue`/`fontFSItalicValue` and (newly
+  found) `fontFSBoldValue`/`fontFSAllCapsValue`/`fontFSSmallCapsValue` carry one
+  entry per run. **Per-word italic is patchable with the current template.**
+  **NO per-run color field exists** in the serialization — `Text Color` is
+  whole-caption; per-word color is GATED on an AE experiment (see Next).
+  MOGRT_SPEC "Per-text-run styling" documents the recipe.
+- 2026-07-03 — Phase 2 step 1 built: per-word italic emphasis (UI_COMPONENTS §5).
+  `src/emphasis.ts`: store keyed by canonical WORD INDEX (stable across re-wraps
+  by construction), each entry remembers the word's text so reconcile never
+  restyles a different word; `buildLineRuns` folds the line-level italic override
+  in and merges adjacent same-style runs (spaces belong to the preceding word's
+  run). Patcher `applyRuns`: run boundaries + per-run italics, carry arrays
+  expanded in parallel, faux-style gate flipped when any run is italic, rejects
+  runs that don't span the text exactly. Plan/renderer pass runs through to the
+  patch. Panel: the selected line's words render as clickable chips — click to
+  toggle italic on just that word; "Clear overrides on this line" clears word
+  emphasis too. 85 tests.
+
+- 2026-07-03 — **Phase 2 step 1 verified live: MULTI-RUN RENDERING CONFIRMED.**
+  Line 11 "of 26 projects across the" with words "26" + "projects" emphasized
+  renders exactly "of *26 projects* across the" — italic mid-line, rest upright.
+  Premiere honors `capPropTextRunCount` > 1 with parallel per-run arrays patched
+  into definition.json (all Phase-1 patches were single-run). The test also
+  exercised the run-merge path: two adjacent emphasized words shipped as ONE
+  italic run between two upright runs. Per-text-run styling is now a proven
+  capability of the patch channel.
+
 ## In progress
 - (none)
 
-## Next (Phase 1 build order)
-10. Line-level color/italic override (color: per-line patch value; italic:
-    fonteditinfo `fontFSItalicValue` — may need a template re-export with
-    faux styles enabled, `capPropFontFauxStyleEdit` is currently false).
-- Then, to complete Phase 1: teleprompter template (MOGRT_SPEC strategies) and
-  template v2 exposures (transition ramp, line height, letter spacing,
-  alignment, outline). Also queued: custom track auto-creation, clip-offset
-  time base, Adobe escalation (text API + UXP crash package).
+## Next (Phase 2 build order)
+1. ~~Per-word italic emphasis~~ — done, verified live.
+2. Per-word color — **gated on a 5-minute AE experiment**: recolor one word of
+   the Line Text in `mogrt_build.aep`, re-export the MOGRT, diff definition.json.
+   If the exporter emits a per-run color field → wire it like italic. If not →
+   the patch route is closed; spec-first decision (descope per-word color to the
+   Properties-panel finishing pass, or template redesign).
+3. Custom style save/load — "Save as custom style…" (UI_COMPONENTS §2); presets
+   and custom styles are the same data shape (SPECIFICATION §6).
+4. Style export/import — JSON file, presets schema + version field
+   (SPECIFICATION §10).
+5. Additional animations/presets — after the Phase 1 close items: teleprompter
+   template (MOGRT_SPEC strategies) + template v2 exposures (transition ramp,
+   line height, letter spacing, alignment, outline).
+- Still queued: Adobe escalation (text API + UXP crash package), custom track
+  auto-creation, clip-offset time base.
 - Side quests / unproven ideas live in `docs/EXPERIMENTS.md` (currently:
-  EXP-001 curve-easing spike).
+  EXP-001 curve-easing spike — sequenced after template v2).
 
 ## Decisions log
 - 2026-07-02: Target UXP (not CEP/ExtendScript). Render via MOGRT (not scripted keyframes).

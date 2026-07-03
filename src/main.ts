@@ -2,6 +2,11 @@
 // package.json "bundle". Sections follow UI_COMPONENTS.md.
 
 import presets from "../presets/style-presets.json";
+import {
+  buildLineRuns,
+  reconcileWordEmphasis,
+  type WordEmphasisMap,
+} from "./emphasis";
 import { pickMogrtFile, pickSrtFile } from "./files";
 import type { ImportedCaptions } from "./model";
 import {
@@ -57,6 +62,7 @@ const overrideLineLabel = el<HTMLElement>("override-line-label");
 const overrideColorInput = el<HTMLInputElement>("override-color-input");
 const overrideColorSwatch = el<HTMLElement>("override-color-swatch");
 const overrideItalicInput = el<HTMLInputElement>("override-italic-input");
+const overrideWordChips = el<HTMLElement>("override-word-chips");
 const clearOverrideButton = el<HTMLButtonElement>("clear-override-button");
 const generateButton = el<HTMLButtonElement>("generate-button");
 const clearButton = el<HTMLButtonElement>("clear-button");
@@ -140,6 +146,8 @@ let imported: ImportedCaptions | null = null;
 let lines: CaptionLine[] = [];
 /** Per-line overrides keyed by word range (src/overrides.ts). */
 let overrideStore: OverrideMap = new Map();
+/** Per-word emphasis keyed by canonical word index (src/emphasis.ts). */
+let wordEmphasisStore: WordEmphasisMap = new Map();
 let selectedLineIndex: number | null = null;
 /** Guards against the editor clobbering its own inputs mid-keystroke. */
 let suppressEditorRender = false;
@@ -161,22 +169,29 @@ function renderLines(): void {
   if (!imported) {
     return;
   }
-  const wrapped = wrapWords(imported.words, {
+  const words = imported.words;
+  const wrapped = wrapWords(words, {
     targetLineChars: currentTargetLineChars(),
     maxLineSec: currentTiming.maxSec,
   });
   // Overrides are keyed by word range: reconcile against the new wrap (stale
   // ranges drop — never silently restyle different words), then attach for
   // the renderer (ARCHITECTURE §6: re-applied after every regeneration).
+  // Word emphasis reconciles against the canonical words (index + text must
+  // still match) and rides each line as per-text-run styling.
   overrideStore = reconcileOverrides(overrideStore, wrapped);
-  lines = attachOverrides(wrapped, overrideStore);
+  wordEmphasisStore = reconcileWordEmphasis(wordEmphasisStore, words);
+  lines = attachOverrides(wrapped, overrideStore).map((line) => {
+    const runs = buildLineRuns(line, words, wordEmphasisStore);
+    return runs ? { ...line, runs } : line;
+  });
   if (selectedLineIndex !== null && selectedLineIndex >= lines.length) {
     selectedLineIndex = null;
   }
   generateButton.disabled = lines.length === 0;
   applyStyleButton.disabled = lines.length === 0;
 
-  const { words, meta } = imported;
+  const { meta } = imported;
   const speakers = meta.speakerNames.length;
   sourceResult.className = "source-result";
   sourceResult.textContent =
@@ -194,7 +209,7 @@ function renderLines(): void {
     const item = document.createElement("li");
     item.className =
       (index === selectedLineIndex ? "is-selected " : "") +
-      (line.override ? "has-override" : "");
+      (line.override || line.runs ? "has-override" : "");
     const time = document.createElement("span");
     // Amber timecode when the line leaves the WCAG safe zone (informational
     // only — generation still runs; SPECIFICATION §9).
@@ -234,6 +249,36 @@ function renderOverrideEditor(): void {
   overrideColorInput.value = override?.color ?? "";
   overrideItalicInput.checked = override?.italic === true;
   setSwatch(overrideColorSwatch, override?.color ?? "");
+
+  // Word-emphasis chips (UI_COMPONENTS §5): one chip per word in the line;
+  // click toggles italic on just that word.
+  overrideWordChips.textContent = "";
+  if (!imported) {
+    return;
+  }
+  for (let w = line.firstWord; w <= line.lastWord; w++) {
+    const chip = document.createElement("span");
+    chip.className =
+      wordEmphasisStore.get(w)?.italic === true ? "word-chip is-italic" : "word-chip";
+    chip.textContent = imported.words[w].text;
+    const index = w;
+    chip.addEventListener("click", () => {
+      toggleWordEmphasis(index);
+    });
+    overrideWordChips.appendChild(chip);
+  }
+}
+
+function toggleWordEmphasis(index: number): void {
+  if (!imported) {
+    return;
+  }
+  if (wordEmphasisStore.get(index)?.italic === true) {
+    wordEmphasisStore.delete(index);
+  } else {
+    wordEmphasisStore.set(index, { text: imported.words[index].text, italic: true });
+  }
+  renderLines(); // re-attaches runs and re-renders the editor's chips
 }
 
 function readOverrideEditor(): void {
@@ -273,6 +318,9 @@ clearOverrideButton.addEventListener("click", () => {
     return;
   }
   overrideStore.delete(overrideKey(line));
+  for (let w = line.firstWord; w <= line.lastWord; w++) {
+    wordEmphasisStore.delete(w);
+  }
   renderLines();
 });
 

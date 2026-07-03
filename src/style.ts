@@ -79,6 +79,17 @@ export function toFontName(family: string, weight: string): string {
   return cleanWeight ? `${cleanFamily}-${cleanWeight}` : cleanFamily;
 }
 
+/**
+ * One per-text-run styling span (the patch channel's unit of per-word
+ * emphasis — docs/MOGRT_SPEC.md "Per-text-run styling"). Runs partition the
+ * caption text: lengths must sum exactly to the text length.
+ */
+export interface StyleRun {
+  /** Characters covered, including the space after the run's last word. */
+  length: number;
+  italic: boolean;
+}
+
 /** The template-unit values the patcher writes (docs/MOGRT_SPEC.md). */
 export interface TemplateStyleValues {
   fontName: string;
