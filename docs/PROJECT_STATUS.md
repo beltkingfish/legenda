@@ -242,8 +242,16 @@ Last updated: 2026-07-03.
   Color rides the per-line patch (override merged into template values); italic
   writes `fontFSItalicValue` (control + per-run capParam array). 69 tests.
 
-- 2026-07-03 — **Italic override renders** (screenshots: monitor + Properties show
-  Italic) — the faux-styles risk is retired; no template re-export needed.
+- 2026-07-03 — **CORRECTION + live results.** Color override verified live: lands on
+  the exact selected line (Line 11, #BBBBBB over the Bold preset). The earlier
+  "italic renders" claim was WRONG — that slant was the maintainer's own
+  Properties-panel hand-edit (font size 88 gave it away), not our flag. Our
+  `fontFSItalicValue` patch is inert, gated by the authored
+  `capPropFontFauxStyleEdit: false` — exactly as pre-flagged. Attempted fix before
+  resorting to an AE re-export: the gate is itself a definition.json field, so the
+  patcher now sets `capPropFontFauxStyleEdit: true` (fonteditinfo + capParam) on
+  italic lines. If the gate flip doesn't render either → fall back to the
+  5-minute AE re-export with "Enable Faux Styles" checked.
 - 2026-07-03 — **Scope decision (SPECIFICATION §7 updated first)**: Premiere's
   Properties panel is the official per-instance *finishing pass* — it can hand-tune
   fonts/sizes/colors/text on individual instances because we exposed the params.

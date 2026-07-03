@@ -25,6 +25,8 @@ interface FontEditInfo {
   fontEditValue?: string;
   fontSizeEditValue?: number;
   fontFSItalicValue?: boolean;
+  /** Gate: faux-style flags are ignored while this is false (found live). */
+  capPropFontFauxStyleEdit?: boolean;
   [key: string]: unknown;
 }
 
@@ -39,6 +41,7 @@ interface CapParam {
   capPropMatchName?: string;
   capPropUIName?: string;
   capPropDefault?: unknown;
+  capPropFontFauxStyleEdit?: boolean;
   /** Per-text-run arrays on the text param. */
   fontEditValue?: string[];
   fontSizeEditValue?: number[];
@@ -154,6 +157,12 @@ function applyStyle(definition: DefinitionJson, style: TemplateStyleValues): voi
     lineText.fonteditinfo.fontEditValue = style.fontName;
     lineText.fonteditinfo.fontSizeEditValue = style.fontSize;
     lineText.fonteditinfo.fontFSItalicValue = italic;
+    if (italic) {
+      // The template was authored with faux-style editing disabled, which
+      // gates fontFSItalicValue (confirmed live: flag alone did not render).
+      // The gate is just another definition.json field — open it when needed.
+      lineText.fonteditinfo.capPropFontFauxStyleEdit = true;
+    }
   }
   for (const param of capParamsOf(definition, LINE_TEXT)) {
     if (Array.isArray(param.fontEditValue)) {
@@ -164,6 +173,9 @@ function applyStyle(definition: DefinitionJson, style: TemplateStyleValues): voi
     }
     if (Array.isArray(param.fontFSItalicValue)) {
       param.fontFSItalicValue = param.fontFSItalicValue.map(() => italic);
+    }
+    if (italic && param.capPropFontFauxStyleEdit !== undefined) {
+      param.capPropFontFauxStyleEdit = true;
     }
   }
 }

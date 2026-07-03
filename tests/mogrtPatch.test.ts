@@ -24,6 +24,7 @@ function makeDefinition() {
         value: { strDB: [{ localeString: "en_US", str: DEFAULT_TEXT }] },
         fonteditinfo: {
           capPropFontEdit: true,
+          capPropFontFauxStyleEdit: false,
           fontEditValue: "Montserrat-Bold",
           fontSizeEditValue: 96,
           fontFSItalicValue: false,
@@ -47,6 +48,7 @@ function makeDefinition() {
               capPropUIName: "Line Text",
               capPropDefault: DEFAULT_TEXT,
               textEditValue: DEFAULT_TEXT,
+              capPropFontFauxStyleEdit: false,
               fontEditValue: ["Montserrat-Bold"],
               fontSizeEditValue: [96],
               fontFSItalicValue: [false],
@@ -145,7 +147,7 @@ test("style run length follows the patched text (found live: mixed styling past 
   assert.deepEqual(textParam.fontTextRunLength, [longText.length]);
 });
 
-test("italic override writes fonteditinfo and the per-run italic array", () => {
+test("italic override writes the flag AND opens the faux-style gate", () => {
   const { definition } = parseResult(
     patchTemplate(loadTemplate(makeMogrt()), {
       text: "Hi",
@@ -153,18 +155,24 @@ test("italic override writes fonteditinfo and the per-run italic array", () => {
       style: { ...TEST_STYLE, italic: true },
     })
   );
-  assert.equal(definition.clientControls[0].fonteditinfo?.fontFSItalicValue, true);
+  const info = definition.clientControls[0].fonteditinfo;
+  assert.equal(info?.fontFSItalicValue, true);
+  assert.equal(info?.capPropFontFauxStyleEdit, true); // gate opened
   const textParam = definition.sourceInfoLocalized.en_US.capsuleparams.capParams[0];
   assert.deepEqual(textParam.fontFSItalicValue, [true]);
+  assert.equal(textParam.capPropFontFauxStyleEdit, true);
 });
 
-test("style without italic writes explicit false (deterministic per-line files)", () => {
+test("style without italic writes explicit false and leaves the gate authored", () => {
   const { definition } = parseResult(
     patchTemplate(loadTemplate(makeMogrt()), { text: "Hi", label: "L1", style: TEST_STYLE })
   );
-  assert.equal(definition.clientControls[0].fonteditinfo?.fontFSItalicValue, false);
+  const info = definition.clientControls[0].fonteditinfo;
+  assert.equal(info?.fontFSItalicValue, false);
+  assert.equal(info?.capPropFontFauxStyleEdit, false); // untouched
   const textParam = definition.sourceInfoLocalized.en_US.capsuleparams.capParams[0];
   assert.deepEqual(textParam.fontFSItalicValue, [false]);
+  assert.equal(textParam.capPropFontFauxStyleEdit, false);
 });
 
 test("style application writes fonteditinfo and per-run font arrays", () => {
