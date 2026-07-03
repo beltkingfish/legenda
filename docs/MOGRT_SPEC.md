@@ -153,6 +153,18 @@ scope call, update SPECIFICATION.md if taken).
   §6), the patch channel is the style channel — no capsule polling needed.
   `fonteditinfo.fontFSItalicValue` is the Phase-1 route to per-line italics
   (step 10). The Background checkbox, unmatchable via the API, IS drivable here.
+- **Per-text-run styling (Phase 2 route to per-word emphasis)**: the text
+  capParam's arrays are PARALLEL per-run arrays — `fontTextRunLength: [n, …]`
+  splits the text into runs (character counts, must sum to the text length),
+  and `fontEditValue` / `fontSizeEditValue` / `fontFSItalicValue` /
+  `fontFSBoldValue` / `fontFSAllCapsValue` / `fontFSSmallCapsValue` hold one
+  entry per run; `capPropTextRunCount` is the run count. Faux-style values
+  are gated by `capPropFontFauxStyleEdit` (flip true when any run uses one —
+  confirmed live for italic, step 10). **There is NO per-run color field** in
+  this serialization (full key sweep of the shipped template, 2026-07-03) —
+  `Text Color` is whole-caption. Open question: does AE's exporter emit a
+  color array when the AUTHORED text mixes fill colors? (5-minute experiment:
+  recolor one word in mogrt_build.aep, re-export, diff definition.json.)
 
 ## Open questions still to answer
 1. Plugin-owned track creation without auto-create: check defs for a track-add

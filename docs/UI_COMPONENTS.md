@@ -35,9 +35,13 @@ elements where supported. One persistent panel, vertically sectioned. Last updat
 
 ### 5. Per-caption editor
 - List/scrubbable list of lines with their in/out times.
-- Selecting a line reveals: color override swatch, italic toggle. (Phase 2: select
-  individual words within the line to italicize / recolor.)
-- "Clear overrides on this line".
+- Selecting a line reveals: color override swatch, italic toggle.
+- **Word emphasis (Phase 2)**: the selected line's words render as clickable chips
+  under the label "Word emphasis"; clicking a word toggles italic on just that word.
+  Emphasized chips render italic with an accent border. Helper text: "Click a word
+  to italicize just that word." (Per-word *recolor* is pending the per-run color
+  channel investigation — see PROJECT_STATUS.)
+- "Clear overrides on this line" (also clears word emphasis within the line).
 
 ### 6. Generate / regenerate
 - Primary button: **Generate captions** (lays MOGRT instances on the plugin track).
