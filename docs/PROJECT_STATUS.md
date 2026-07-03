@@ -279,6 +279,22 @@ Last updated: 2026-07-02.
     patch RIFX (same-length swap works; variable-length needs chunk rewriting);
     both default ⇒ patching route closed → escalate to Adobe, Phase 1 rethink.
 
+## Step 6 continued — patching investigation status (2026-07-02, evening)
+- Fresh project + purged media cache + fully patched PT3 (JSON + every plaintext
+  byte of the text, incl. the real btdk text document) STILL renders the original
+  text. No zlib-compressed copies exist in the .aep (scanned). Labels update from
+  definition.json; the visual does not.
+- **Prime remaining suspect**: render resolves to the AUTHORING PROJECT present on
+  this machine (`mogrt_build.aep` at repo root / possibly a running AE instance) —
+  dynamic-link-style source preference. **Test**: quit AE, rename mogrt_build.aep,
+  re-insert PT3. If text flips, it's a dev-machine artifact only (end users lack
+  the source project) and patching is viable.
+- If that test fails too: escalate to Adobe (forum + feature request, minimal
+  repro ready) and proceed with renderer work that doesn't need text (timing,
+  track management, style params) while the text path waits.
+- `getFrameSize()` vindicated: read 3840×2160 and 1920×1080 correctly on the two
+  new sequences (the earlier 1182×665 was that sequence's real size).
+
 ## Discovered API limitations (append as found)
 - Caption-track text read/write: not available (as of research date).
 - Multi-keyframe ComponentParam writes: reported unreliable in current UXP builds.
@@ -289,6 +305,10 @@ Last updated: 2026-07-02.
 - `@adobe/cc-ext-uxp-types` gaps: global `require` not declared (we declare it in
   src/globals.d.ts); `Element#classList` missing from defs (use `className`); standard
   "DOM" lib must be excluded to avoid conflicts (per its README).
+- Premiere's transcript export violates its own published spec: real exports contain
+  word tokens with NO `text` field (observed segments[0].words[44] on an interview
+  transcript, 2026-07-02). Parser skips such tokens and reports a count
+  (`meta.skippedTokens`) instead of failing the import.
 - UXP CSS (observed in Premiere 26.3, live): flexbox `gap` is ignored — use margins
   (fix confirmed live). Header/footer content rendered centered; `align-items: stretch`
   did NOT fix it (disproved live) — current fix sets `text-align: left`,

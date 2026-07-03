@@ -21,6 +21,8 @@ export interface CaptionSourceMeta {
   /** Where the captions came from: clip name (transcript) or file name (SRT). */
   sourceName?: string;
   speakerNames: string[];
+  /** Spec-violating tokens the parser skipped (real Premiere exports have them). */
+  skippedTokens?: number;
 }
 
 /** Result of a successful import, before line wrapping. */

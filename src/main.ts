@@ -117,7 +117,8 @@ function renderLines(): void {
       ? ` · ${speakers} speaker${speakers === 1 ? "" : "s"}`
       : "") +
     (meta.language ? ` · ${meta.language}` : "") +
-    (meta.kind === "srt" && meta.sourceName ? ` · ${meta.sourceName}` : "");
+    (meta.kind === "srt" && meta.sourceName ? ` · ${meta.sourceName}` : "") +
+    (meta.skippedTokens ? ` · ${meta.skippedTokens} malformed token(s) skipped` : "");
 
   // Read-only preview; the editable per-caption list is a later step.
   linePreview.textContent = "";
