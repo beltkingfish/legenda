@@ -418,12 +418,22 @@ Last updated: 2026-07-03.
   Animation section (Fade · Teleprompter) with the teleprompter limitations
   hint (per-word color + Transition are fade-only in template v1). 121 tests.
 
+- 2026-07-04 — **Teleprompter renderer verified live** (both animations lay
+  correctly; 75 instances on tracks 2–3). Maintainer redesign directed from
+  the result: the two-row cut-masked version reads OK but the real intent is
+  a **three-row rising stack** — upcoming line previews dim/blurred below,
+  current sharp in the middle, previous dim/blurred above, all physically
+  rising on Y with each push. SPECIFICATION §4 revised; teleprompter v2
+  contract in MOGRT_SPEC (Row slider 0–2 replaces Top Row; Transition (ms)
+  becomes the push duration — the Timing field turns meaningful for
+  teleprompter); full recipe in MOGRT_AUTHORING §D. Cut-masking upgrades from
+  blur to VALUE CONTINUITY (each instance's entry animates from the previous
+  row's resting values). Renderer follow-up once v2 exports: three instances
+  per line, THREE plugin tracks, Row patched per instance.
+
 ## In progress
-- **Teleprompter live checks**: (a) two empty tracks required message; (b)
-  generate lays ~2×lines instances on two tracks; (c) playback: line blurs in
-  at bottom, pushes to top when the next arrives, blurs+fades out when the
-  one after arrives; (d) long pauses: no push, clean exit; (e) Clear sweeps
-  both tracks; (f) switching back to Fade clears the second track.
+- Teleprompter v2 template (maintainer AE session, §D) → then the renderer
+  three-row update.
 
 ## Next (Phase 2 build order)
 1. ~~Per-word italic emphasis~~ — done, verified live.

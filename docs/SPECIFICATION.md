@@ -21,9 +21,14 @@ These are chosen independently and mixed freely (e.g. "Clean" look + teleprompte
 - **Per-word reveal** is a later phase built on the same pipeline (see §9).
 
 ## 4. Animation styles (Phase 1)
-1. **Teleprompter** — two lines visible; when a new line arrives, existing lines push up;
-   the line leaving the top blurs + fades out; the incoming line blurs in and resolves
-   out of blur into focus.
+1. **Teleprompter** (revised 2026-07-04, maintainer) — THREE lines visible as a
+   rising stack: the upcoming line previews at the BOTTOM (blurred ≈75%, dimmed
+   ≈25% opacity), the current line sits sharp at 100% in the MIDDLE, the
+   previous line hangs at the TOP (blurred, dimmed). On each new line the stack
+   **physically rises on the Y-axis** — continuous motion, not cuts: the
+   preview rises into the middle and resolves to focus, the current defocuses
+   and dims into the top, the old line rises off and fades out. The push
+   duration follows the Transition setting.
 2. **Fade** — simple fade in / fade out per line.
 The animation itself is authored into pre-built MOGRT template(s); the plugin drives the
 exposed parameters and timing (see ARCHITECTURE.md).
