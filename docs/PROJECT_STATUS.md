@@ -397,14 +397,17 @@ Last updated: 2026-07-03.
   each line's exact duration (114 tests). MOGRT_AUTHORING §B1/§C3/§C4 recipes
   revised with the corrected expressions.
 
+- 2026-07-03 — **Constraint-#8 countermeasure VERIFIED LIVE**: both templates
+  re-exported with `Duration (ms)` + inverted expressions (byte-verified,
+  committed), plugin patches each line's real duration — regenerated captions
+  now FADE at the Timing field's chosen ramp regardless of caption length
+  (Transition 500 confirmed on-screen mid-fade with per-word styling intact).
+  Step 2 is functionally verified: transition ✓ outline ✓ word color ✓ word
+  italic ✓. Only the cosmetic overflow-message check (3+ colored word-groups)
+  remains unexercised.
+
 ## In progress
-- **Fade fix, maintainer AE side**: add `Duration (ms)` slider + swap the
-  revised expressions into BOTH comps (MOGRT_AUTHORING §B1 rev / §C3–C5 rev),
-  re-export both .mogrt files over the committed ones. Then: byte-verify,
-  regenerate, and re-run the step-2 fade checks (150 vs 500 at any caption
-  length).
-- Remaining step-2 checks after that: (e) 3+ colored word-groups → status
-  reports the skip. Checks (b) outline and (c)/(d) word emphasis are DONE.
+- (none)
 
 ## Next (Phase 2 build order)
 1. ~~Per-word italic emphasis~~ — done, verified live.
