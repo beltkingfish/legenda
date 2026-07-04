@@ -279,6 +279,13 @@ export interface PatchOptions {
   /** Fade ramp duration — the `Transition (ms)` control (template v2). */
   transitionMs?: number;
   /**
+   * The line's exact display duration — the `Duration (ms)` control.
+   * Premiere uniformly time-stretches the comp onto the clip (ARCHITECTURE
+   * hard constraint #8); template expressions use this to invert the stretch
+   * and place intro/outro ramps in real clip time.
+   */
+  durationMs?: number;
+  /**
    * Per-word color ranges in template units (0-based char start, exclusive
    * end, [r,g,b,a] color). Max TWO — the template's slot count; the caller
    * truncates and reports overflow.
@@ -313,6 +320,9 @@ export function patchTemplate(
   }
   if (options.transitionMs !== undefined) {
     setSimpleControl(definition, "Transition (ms)", options.transitionMs);
+  }
+  if (options.durationMs !== undefined) {
+    setSimpleControl(definition, "Duration (ms)", options.durationMs);
   }
   if (options.emphasis) {
     if (options.emphasis.length > 2) {

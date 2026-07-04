@@ -382,12 +382,32 @@ Last updated: 2026-07-03.
   merge, 2-slot truncation reported in the generate status). SPECIFICATION §7
   records the 2-slot limit. 113 tests.
 
+- 2026-07-03 — **Step-2 live checks: italic ✓ per-word color ✓ — and a MAJOR
+  platform finding on the fade.** Captions snapped on/off despite the patched
+  Transition value landing (Properties showed it). Maintainer-driven
+  experiment matrix isolated it: patch innocent (untrimmed patched instance
+  fades), position irrelevant (0:00 test), and the decisive measurement —
+  **fade length is PROPORTIONAL to clip length** (razor cuts window without
+  remapping). Verdict: **Premiere uniformly time-stretches the comp onto the
+  clip; protected regions are NOT honored on our instances** — now
+  ARCHITECTURE hard constraint #8. Corollary: v1's keyframed fades were
+  invisibly compressed (~2 frames) all through Phase 1. Countermeasure
+  designed + wired plugin-side: templates expose `Duration (ms)`; expressions
+  invert the stretch (`t = time × durS / thisComp.duration`); patcher writes
+  each line's exact duration (114 tests). MOGRT_AUTHORING §B1/§C3/§C4 recipes
+  revised with the corrected expressions.
+
+- 2026-07-03 — **Constraint-#8 countermeasure VERIFIED LIVE**: both templates
+  re-exported with `Duration (ms)` + inverted expressions (byte-verified,
+  committed), plugin patches each line's real duration — regenerated captions
+  now FADE at the Timing field's chosen ramp regardless of caption length
+  (Transition 500 confirmed on-screen mid-fade with per-word styling intact).
+  Step 2 is functionally verified: transition ✓ outline ✓ word color ✓ word
+  italic ✓. Only the cosmetic overflow-message check (3+ colored word-groups)
+  remains unexercised.
+
 ## In progress
-- **Step 2 / v2-wiring live checks**: (a) Transition duration field changes
-  generated fades (150 vs 500); (b) Minimal preset renders its outline; (c)
-  word color override renders on the exact word; (d) per-word italic still
-  renders (no run-array regression); (e) 3+ colored word-groups on one line →
-  status reports the skip.
+- (none)
 
 ## Next (Phase 2 build order)
 1. ~~Per-word italic emphasis~~ — done, verified live.

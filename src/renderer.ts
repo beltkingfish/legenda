@@ -214,11 +214,19 @@ export async function generateCaptions(
       end: slot.endChar,
       color: hexToRgba(slot.color),
     }));
+    // Real display duration — the template's time-stretch inversion anchor
+    // (ARCHITECTURE hard constraint #8). Tick math stays in Number range.
+    const durationMs = Math.round(
+      ((Number(line.endTicks) - Number(line.startTicks)) /
+        PREMIERE_TICKS_PER_SECOND) *
+        1000
+    );
     const patched = patchTemplate(template, {
       text: line.text,
       label,
       style: applyOverrideToValues(styleValues, line.override),
       transitionMs: timing.transitionMs,
+      durationMs,
       ...(line.runs ? { runs: line.runs } : {}),
       ...(emphasis.length > 0 ? { emphasis } : {}),
     });

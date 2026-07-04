@@ -55,6 +55,20 @@ Last updated: 2026-07-02. Read the **Hard constraints** section before designing
    wrapper) and write via `createKeyframe(Color)`. Caption text therefore cannot be
    set on an inserted instance through the current API — see PROJECT_STATUS step-6
    record for the per-line template-patching contingency (maintainer decision).
+8. **MOGRT instances are UNIFORMLY TIME-STRETCHED to the clip length** (measured
+   live 2026-07-03): comp-time = clip-time × (compDuration / clipLength), so a
+   4 s comp squeezed into a 1.3 s caption plays ~3× fast — authored animation
+   timing compresses/dilates proportionally, and **responsive-design-time
+   protected regions are NOT honored** on instances placed via
+   `insertMogrtFromPath` (razor cuts window the clip without remapping,
+   confirming a fixed linear mapping). Consequence: neither keyframed nor
+   naive expression-driven intro/outro timing survives trimming — v1's
+   keyframed fades were invisibly compressed all through Phase 1.
+   **Adopted countermeasure**: templates expose a `Duration (ms)` slider the
+   patcher fills with the line's exact duration; time expressions invert the
+   stretch (`t = time × durS / thisComp.duration`) and place ramps in real
+   clip time. Templates must not rely on protected regions for anything
+   timing-critical.
 
 ## 3. Rendering model (MOGRT-driven, per-line template patching for text)
 - Ship one or more **pre-authored MOGRT templates** (After Effects, UHD comp) with the
