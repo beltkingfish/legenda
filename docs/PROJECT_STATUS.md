@@ -360,7 +360,11 @@ Last updated: 2026-07-03.
   UXP host-API cluster (`+0xaa5f874 → +0xaa575ec → +0xaa58d38 → +0xaa69b1c…`).
   Only the garbage pointer differs (near-NULL 0x11 vs in-image address) —
   consistent with a use-after-free at one code site. Escalation package is now
-  three dumps, one deterministic signature.
+  three dumps, one deterministic signature. **Action at time of crash, all
+  three: the generate workload** (#1 style changes + regenerates, #2 near
+  Apply-to-all, #3 right after Generate following a probe insert of v2) —
+  never panel-idle work. Consistent with the insert → lazy-capsule-poll →
+  transaction loop stressing the buggy host-API path.
 
 ## In progress
 - (none)
