@@ -9,8 +9,8 @@ in the same change. Last updated: 2026-07-02.
 ## Files
 | File | Animation | Status |
 | --- | --- | --- |
-| `mogrt/legenda-fade-v1.mogrt` | Fade | **shipped** (renderer default) |
-| `mogrt/legenda-fade-v2.mogrt` | Fade + transition ramp + outline | recipe ready (MOGRT_AUTHORING §B) |
+| `mogrt/legenda-fade-v1.mogrt` | Fade | shipped (superseded; kept for reference) |
+| `mogrt/legenda-fade-v2.mogrt` | Fade + transition ramp + outline + emphasis slots | **shipped — renderer default** (live-verified 2026-07-03) |
 | `mogrt/legenda-teleprompter-v1.mogrt` | Teleprompter | recipe ready (MOGRT_AUTHORING §C) |
 
 One MOGRT instance renders **one caption line**. The plugin inserts an instance per

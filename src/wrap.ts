@@ -13,7 +13,7 @@
 // the line is reasonably full (EOS_BREAK_FILL of the character budget).
 
 import type { CaptionWord } from "./model";
-import type { StyleRun } from "./style";
+import type { EmphasisSlot, StyleRun } from "./style";
 
 export interface WrapOptions {
   /** Screen-real-estate setting: target maximum characters per line. */
@@ -38,6 +38,8 @@ export interface CaptionLine {
   override?: { color?: string; italic?: boolean };
   /** Per-word emphasis as text runs, attached before generation (src/emphasis.ts). */
   runs?: StyleRun[];
+  /** Per-word color ranges, attached before generation (src/emphasis.ts). */
+  emphasisSlots?: EmphasisSlot[];
 }
 
 /** Fraction of the char budget after which an eos word may end the line. */
@@ -75,6 +77,7 @@ export interface FramePlanEntry {
   endTicks: string;
   override?: CaptionLine["override"];
   runs?: StyleRun[];
+  emphasisSlots?: EmphasisSlot[];
 }
 
 /**
@@ -112,6 +115,7 @@ export function planFrameTimings(
       endTicks: String(endFrame * ticksPerFrame),
       ...(lines[i].override ? { override: lines[i].override } : {}),
       ...(lines[i].runs ? { runs: lines[i].runs } : {}),
+      ...(lines[i].emphasisSlots ? { emphasisSlots: lines[i].emphasisSlots } : {}),
     });
   }
   return out;

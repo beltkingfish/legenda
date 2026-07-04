@@ -2,10 +2,10 @@
 
 Update this at the end of any session with meaningful changes (see CLAUDE.md → Update ritual).
 
-Current phase: **Phase 2 — steps 1 (per-word emphasis), 3 (custom styles), and
-4 (style export/import) done and verified live. Step 2 (per-word color) gated
-on the AE recolor experiment. Phase 1 close items still open: teleprompter
-template + template v2 authoring.**
+Current phase: **Phase 2 — steps 1/3/4 verified live; template v2 authored and
+its mechanisms live-verified; step 2 (per-word color) + v2 wiring BUILT,
+awaiting live verify. Phase 1 close item still open: teleprompter template
+(recipe ready, MOGRT_AUTHORING §C).**
 Last updated: 2026-07-03.
 
 ## Done
@@ -366,16 +366,33 @@ Last updated: 2026-07-03.
   never panel-idle work. Consistent with the insert → lazy-capsule-poll →
   transaction loop stressing the buggy host-API path.
 
+- 2026-07-03 — **Template v2 authored (maintainer AE session, guided) and its
+  three unproven mechanisms LIVE-VERIFIED in Premiere** via probe insert +
+  Properties-panel drive: (1) expression-driven `Transition (ms)` visibly
+  changes the fade — **EXPERIMENTS EXP-001 gate PASSED**; (2) emphasis-slot
+  animators recolor exact char ranges — per-word color route proven; (3)
+  layer-style Stroke outline renders. Contract byte-verified before Premiere
+  (all 16 names/shapes/ranges/defaults). v2 committed with AE source.
+- 2026-07-03 — Phase 2 step 2 + v2 wiring built: renderer ships
+  legenda-fade-v2; Timing's Transition field now LIVE (patched per line);
+  Outline controls added to Caption Style (Minimal's authored outline finally
+  renders); word editor redesigned select-then-edit (click chip → italic
+  checkbox + word color field; chips tint in their color); word colors map to
+  emphasis slots via `buildEmphasisSlots` (char ranges, adjacent same-color
+  merge, 2-slot truncation reported in the generate status). SPECIFICATION §7
+  records the 2-slot limit. 113 tests.
+
 ## In progress
-- (none)
+- **Step 2 / v2-wiring live checks**: (a) Transition duration field changes
+  generated fades (150 vs 500); (b) Minimal preset renders its outline; (c)
+  word color override renders on the exact word; (d) per-word italic still
+  renders (no run-array regression); (e) 3+ colored word-groups on one line →
+  status reports the skip.
 
 ## Next (Phase 2 build order)
 1. ~~Per-word italic emphasis~~ — done, verified live.
-2. Per-word color — experiment done, **route decided: emphasis slots in fade
-   v2** (MOGRT_AUTHORING §B3). Plugin work after the v2 export lands: patch
-   `Emphasis N Start/End/Color` from word overrides (word→char-range mapping
-   exists in the run builder), word-chip color UI, live gate = an animator
-   range driven by patched sliders renders in Premiere.
+2. Per-word color — built on the v2 emphasis slots; live verify pending
+   (see In progress).
 3. ~~Custom style save/load~~ — done, verified live (incl. persistence across
    plugin restart).
 4. ~~Style export/import~~ — done, verified live (full round trip).

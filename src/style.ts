@@ -100,6 +100,19 @@ export interface StyleRun {
   italic: boolean;
 }
 
+/**
+ * One per-word color range (template v2 emphasis slots — MOGRT_SPEC "Fade v2
+ * exposures"). Character indices into the line text: 0-based start,
+ * exclusive end. The template exposes TWO slots; the renderer takes the
+ * first two ranges and reports any overflow.
+ */
+export interface EmphasisSlot {
+  startChar: number;
+  endChar: number;
+  /** #RRGGBB */
+  color: string;
+}
+
 /** The template-unit values the patcher writes (docs/MOGRT_SPEC.md). */
 export interface TemplateStyleValues {
   fontName: string;
@@ -109,6 +122,8 @@ export interface TemplateStyleValues {
   backgroundColor: Rgba;
   backgroundOpacity: number; // 0–100; 0 when disabled (spec: 0 ⇒ off)
   shadowOpacity: number; // 0–100; 0 when disabled
+  outlineWidth: number; // template px; 0 when disabled (spec: 0 ⇒ off)
+  outlineColor: Rgba;
   /** Faux italic (fonteditinfo fontFSItalicValue) — per-line override channel. */
   italic?: boolean;
 }
@@ -148,5 +163,9 @@ export function styleToTemplateValues(
     shadowOpacity: style.dropShadow.enabled
       ? Math.round(style.dropShadow.opacity * 100)
       : 0,
+    outlineWidth: style.outline.enabled
+      ? Math.round(style.outline.width * designScale)
+      : 0,
+    outlineColor: hexToRgba(style.outline.color),
   };
 }

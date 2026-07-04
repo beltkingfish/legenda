@@ -13,8 +13,10 @@ import {
   type CustomStyle,
 } from "./customStyles";
 import {
+  buildEmphasisSlots,
   buildLineRuns,
   reconcileWordEmphasis,
+  type WordEmphasis,
   type WordEmphasisMap,
 } from "./emphasis";
 import {
@@ -81,6 +83,10 @@ const overrideColorInput = el<HTMLInputElement>("override-color-input");
 const overrideColorSwatch = el<HTMLElement>("override-color-swatch");
 const overrideItalicInput = el<HTMLInputElement>("override-italic-input");
 const overrideWordChips = el<HTMLElement>("override-word-chips");
+const wordEditor = el<HTMLElement>("word-editor");
+const wordItalicInput = el<HTMLInputElement>("word-italic-input");
+const wordColorInput = el<HTMLInputElement>("word-color-input");
+const wordColorSwatch = el<HTMLElement>("word-color-swatch");
 const clearOverrideButton = el<HTMLButtonElement>("clear-override-button");
 const generateButton = el<HTMLButtonElement>("generate-button");
 const clearButton = el<HTMLButtonElement>("clear-button");
@@ -97,6 +103,10 @@ const bgColorSwatch = el<HTMLElement>("bg-color-swatch");
 const bgOpacityInput = el<HTMLInputElement>("bg-opacity-input");
 const shadowEnabledInput = el<HTMLInputElement>("shadow-enabled-input");
 const shadowOpacityInput = el<HTMLInputElement>("shadow-opacity-input");
+const outlineEnabledInput = el<HTMLInputElement>("outline-enabled-input");
+const outlineWidthInput = el<HTMLInputElement>("outline-width-input");
+const outlineColorInput = el<HTMLInputElement>("outline-color-input");
+const outlineColorSwatch = el<HTMLElement>("outline-color-swatch");
 const applyStyleButton = el<HTMLButtonElement>("apply-style-button");
 const saveStyleButton = el<HTMLButtonElement>("save-style-button");
 const saveStyleRow = el<HTMLElement>("save-style-row");
@@ -178,6 +188,8 @@ let overrideStore: OverrideMap = new Map();
 /** Per-word emphasis keyed by canonical word index (src/emphasis.ts). */
 let wordEmphasisStore: WordEmphasisMap = new Map();
 let selectedLineIndex: number | null = null;
+/** Selected word (canonical index) in the per-word emphasis editor. */
+let selectedWordIndex: number | null = null;
 /** Guards against the editor clobbering its own inputs mid-keystroke. */
 let suppressEditorRender = false;
 
@@ -212,7 +224,14 @@ function renderLines(): void {
   wordEmphasisStore = reconcileWordEmphasis(wordEmphasisStore, words);
   lines = attachOverrides(wrapped, overrideStore).map((line) => {
     const runs = buildLineRuns(line, words, wordEmphasisStore);
-    return runs ? { ...line, runs } : line;
+    const emphasisSlots = buildEmphasisSlots(line, words, wordEmphasisStore);
+    return runs || emphasisSlots
+      ? {
+          ...line,
+          ...(runs ? { runs } : {}),
+          ...(emphasisSlots ? { emphasisSlots } : {}),
+        }
+      : line;
   });
   if (selectedLineIndex !== null && selectedLineIndex >= lines.length) {
     selectedLineIndex = null;
@@ -238,7 +257,7 @@ function renderLines(): void {
     const item = document.createElement("li");
     item.className =
       (index === selectedLineIndex ? "is-selected " : "") +
-      (line.override || line.runs ? "has-override" : "");
+      (line.override || line.runs || line.emphasisSlots ? "has-override" : "");
     const time = document.createElement("span");
     // Amber timecode when the line leaves the WCAG safe zone (informational
     // only — generation still runs; SPECIFICATION §9).
@@ -255,6 +274,7 @@ function renderLines(): void {
     item.appendChild(text);
     item.addEventListener("click", () => {
       selectedLineIndex = index === selectedLineIndex ? null : index;
+      selectedWordIndex = null;
       renderLines();
     });
     linePreview.appendChild(item);
@@ -280,35 +300,86 @@ function renderOverrideEditor(): void {
   setSwatch(overrideColorSwatch, override?.color ?? "");
 
   // Word-emphasis chips (UI_COMPONENTS §5): one chip per word in the line;
-  // click toggles italic on just that word.
+  // click SELECTS the word and reveals its own italic + color controls.
   overrideWordChips.textContent = "";
   if (!imported) {
+    wordEditor.className = "word-editor";
     return;
   }
   for (let w = line.firstWord; w <= line.lastWord; w++) {
+    const entry = wordEmphasisStore.get(w);
     const chip = document.createElement("span");
-    chip.className =
-      wordEmphasisStore.get(w)?.italic === true ? "word-chip is-italic" : "word-chip";
+    let cls = "word-chip";
+    if (entry?.italic === true) {
+      cls += " is-italic";
+    }
+    if (entry?.italic === true || entry?.color !== undefined) {
+      cls += " has-emphasis";
+    }
+    if (w === selectedWordIndex) {
+      cls += " is-selected";
+    }
+    chip.className = cls;
     chip.textContent = imported.words[w].text;
+    if (entry?.color !== undefined && w !== selectedWordIndex) {
+      try {
+        (chip as unknown as { style: { color: string } }).style.color = entry.color;
+      } catch {
+        // chip tinting is cosmetic
+      }
+    }
     const index = w;
     chip.addEventListener("click", () => {
-      toggleWordEmphasis(index);
+      selectedWordIndex = index === selectedWordIndex ? null : index;
+      renderLines();
     });
     overrideWordChips.appendChild(chip);
   }
+  renderWordEditor();
 }
 
-function toggleWordEmphasis(index: number): void {
-  if (!imported) {
+function renderWordEditor(): void {
+  if (selectedWordIndex === null || !imported) {
+    wordEditor.className = "word-editor";
     return;
   }
-  if (wordEmphasisStore.get(index)?.italic === true) {
-    wordEmphasisStore.delete(index);
-  } else {
-    wordEmphasisStore.set(index, { text: imported.words[index].text, italic: true });
-  }
-  renderLines(); // re-attaches runs and re-renders the editor's chips
+  wordEditor.className = "word-editor is-visible";
+  const entry = wordEmphasisStore.get(selectedWordIndex);
+  wordItalicInput.checked = entry?.italic === true;
+  wordColorInput.value = entry?.color ?? "";
+  setSwatch(wordColorSwatch, entry?.color ?? "");
 }
+
+/** `suppress` skips the editor re-render (mid-keystroke color typing). */
+function readWordEditor(suppress: boolean): void {
+  if (selectedWordIndex === null || !imported) {
+    return;
+  }
+  const entry: WordEmphasis = { text: imported.words[selectedWordIndex].text };
+  if (wordItalicInput.checked) {
+    entry.italic = true;
+  }
+  const colorRaw = wordColorInput.value.trim();
+  if (colorRaw !== "" && isValidHexColor(colorRaw)) {
+    entry.color = colorRaw.startsWith("#") ? colorRaw : `#${colorRaw}`;
+  }
+  if (entry.italic === true || entry.color !== undefined) {
+    wordEmphasisStore.set(selectedWordIndex, entry);
+  } else {
+    wordEmphasisStore.delete(selectedWordIndex);
+  }
+  setSwatch(wordColorSwatch, entry.color ?? "");
+  suppressEditorRender = suppress;
+  renderLines();
+  suppressEditorRender = false;
+}
+
+wordItalicInput.addEventListener("change", () => {
+  readWordEditor(false); // checkbox click — safe to re-render the chips
+});
+wordColorInput.addEventListener("input", () => {
+  readWordEditor(true); // typing — don't clobber the input
+});
 
 function readOverrideEditor(): void {
   const line = selectedLineIndex !== null ? lines[selectedLineIndex] : undefined;
@@ -350,6 +421,7 @@ clearOverrideButton.addEventListener("click", () => {
   for (let w = line.firstWord; w <= line.lastWord; w++) {
     wordEmphasisStore.delete(w);
   }
+  selectedWordIndex = null;
   renderLines();
 });
 
@@ -444,8 +516,12 @@ function renderStyleControls(): void {
   bgOpacityInput.value = String(Math.round(currentStyle.background.opacity * 100));
   shadowEnabledInput.checked = currentStyle.dropShadow.enabled;
   shadowOpacityInput.value = String(Math.round(currentStyle.dropShadow.opacity * 100));
+  outlineEnabledInput.checked = currentStyle.outline.enabled;
+  outlineWidthInput.value = String(currentStyle.outline.width);
+  outlineColorInput.value = currentStyle.outline.color;
   setSwatch(textColorSwatch, currentStyle.textColor);
   setSwatch(bgColorSwatch, currentStyle.background.color);
+  setSwatch(outlineColorSwatch, currentStyle.outline.color);
   for (const { id, button } of presetButtons) {
     button.className =
       id === currentPresetId ? "button preset-button is-active" : "button preset-button";
@@ -487,6 +563,17 @@ function readStyleControls(): void {
     shadowOpacityInput,
     currentStyle.dropShadow.opacity
   );
+  currentStyle.outline.enabled = outlineEnabledInput.checked;
+  const outlineWidth = Number.parseInt(outlineWidthInput.value, 10);
+  if (Number.isFinite(outlineWidth) && outlineWidth >= 0) {
+    currentStyle.outline.width = outlineWidth;
+  }
+  if (isValidHexColor(outlineColorInput.value)) {
+    currentStyle.outline.color = outlineColorInput.value.startsWith("#")
+      ? outlineColorInput.value
+      : `#${outlineColorInput.value}`;
+  }
+  setSwatch(outlineColorSwatch, currentStyle.outline.color);
   currentPresetId = "custom";
   // The working style diverged from whatever saved style was loaded.
   myStylesSelect.value = "";
@@ -505,12 +592,12 @@ for (const { id, button } of presetButtons) {
     renderStyleControls();
   });
 }
-for (const input of [fontFamilyInput, fontSizeInput, textColorInput, bgColorInput, bgOpacityInput, shadowOpacityInput]) {
+for (const input of [fontFamilyInput, fontSizeInput, textColorInput, bgColorInput, bgOpacityInput, shadowOpacityInput, outlineWidthInput, outlineColorInput]) {
   input.addEventListener("input", () => {
     readStyleControls();
   });
 }
-for (const input of [fontWeightSelect, bgEnabledInput, shadowEnabledInput]) {
+for (const input of [fontWeightSelect, bgEnabledInput, shadowEnabledInput, outlineEnabledInput]) {
   input.addEventListener("change", () => {
     readStyleControls();
   });
@@ -788,6 +875,9 @@ async function onGenerateClick(): Promise<void> {
       ` · scaled to ${result.scalePct.toFixed(1)}%` +
       (result.droppedLines > 0
         ? ` · ${result.droppedLines} zero-length line(s) skipped`
+        : "") +
+      (result.emphasisOverflow > 0
+        ? ` · ${result.emphasisOverflow} word color(s) beyond the 2-slot limit skipped`
         : "");
   } catch (err) {
     generateStatus.className = "hint is-error";

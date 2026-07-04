@@ -185,6 +185,16 @@ test("planFrameTimings carries per-line overrides through to the plan", () => {
   assert.equal(plan[1].override, undefined);
 });
 
+test("planFrameTimings carries per-line emphasis slots through to the plan", () => {
+  const emphasisSlots = [{ startChar: 4, endChar: 9, color: "#FF0000" }];
+  const plan = planFrameTimings(
+    [{ ...makeLine(0, 1.5), emphasisSlots }, makeLine(2, 3)],
+    TPF_30
+  );
+  assert.deepEqual(plan[0].emphasisSlots, emphasisSlots);
+  assert.equal(plan[1].emphasisSlots, undefined);
+});
+
 test("planFrameTimings carries per-line style runs through to the plan", () => {
   const runs = [
     { length: 4, italic: false },

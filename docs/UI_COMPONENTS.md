@@ -56,10 +56,16 @@ elements where supported. One persistent panel, vertically sectioned. Last updat
 - List/scrubbable list of lines with their in/out times.
 - Selecting a line reveals: color override swatch, italic toggle.
 - **Word emphasis (Phase 2)**: the selected line's words render as clickable chips
-  under the label "Word emphasis"; clicking a word toggles italic on just that word.
-  Emphasized chips render italic with an accent border. Helper text: "Click a word
-  to italicize just that word." (Per-word *recolor* is pending the per-run color
-  channel investigation — see PROJECT_STATUS.)
+  under the label "Word emphasis". Clicking a chip SELECTS the word (accent fill)
+  and reveals the word's own controls beneath — an "Italic" checkbox and a
+  "Word color (#RRGGBB · empty = none)" field — independent properties, the same
+  pattern as the line editor. Clicking the selected chip again deselects.
+  Emphasized chips render italic and/or tinted in their color, with an accent
+  border. Helper text: "Click a word to edit its emphasis."
+- Per-word color renders via the template's TWO emphasis slots: up to two
+  colored word-groups per line (adjacent same-color words merge into one
+  group). Further groups are skipped at Generate with a count in the status
+  line: `N word color(s) beyond the 2-slot limit skipped`.
 - "Clear overrides on this line" (also clears word emphasis within the line).
 
 ### 6. Generate / regenerate

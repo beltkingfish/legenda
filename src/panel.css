@@ -230,8 +230,27 @@ body {
 
 .word-chip.is-italic {
   font-style: italic;
-  border-color: var(--accent);
   color: #ffffff;
+}
+
+.word-chip.has-emphasis {
+  border-color: var(--accent);
+}
+
+.word-chip.is-selected {
+  background-color: var(--accent);
+  color: #ffffff;
+}
+
+.word-editor {
+  display: none;
+  margin-top: 4px;
+  padding-left: 8px;
+  border-left: 2px solid var(--border);
+}
+
+.word-editor.is-visible {
+  display: block;
 }
 
 .line-time {

@@ -38,6 +38,16 @@ function makeDefinition() {
       { id: "id-bgo", uiName: { strDB: [{ str: "Background Opacity" }] }, value: 60 },
       { id: "id-so", uiName: { strDB: [{ str: "Shadow Opacity" }] }, value: 0 },
       { id: "id-ver", uiName: { strDB: [{ str: "Legenda Version" }] }, value: 1 },
+      // v2 exposures (appended so index-based assertions above stay valid)
+      { id: "id-tr", uiName: { strDB: [{ str: "Transition (ms)" }] }, value: 150 },
+      { id: "id-ow", uiName: { strDB: [{ str: "Outline Width" }] }, value: 0 },
+      { id: "id-oc", uiName: { strDB: [{ str: "Outline Color" }] }, value: [0, 0, 0, 1] },
+      { id: "id-e1s", uiName: { strDB: [{ str: "Emphasis 1 Start" }] }, value: 0 },
+      { id: "id-e1e", uiName: { strDB: [{ str: "Emphasis 1 End" }] }, value: 0 },
+      { id: "id-e1c", uiName: { strDB: [{ str: "Emphasis 1 Color" }] }, value: [0, 0, 1, 1] },
+      { id: "id-e2s", uiName: { strDB: [{ str: "Emphasis 2 Start" }] }, value: 0 },
+      { id: "id-e2e", uiName: { strDB: [{ str: "Emphasis 2 End" }] }, value: 0 },
+      { id: "id-e2c", uiName: { strDB: [{ str: "Emphasis 2 Color" }] }, value: [0, 1, 0, 1] },
     ],
     sourceInfoLocalized: {
       en_US: {
@@ -63,6 +73,15 @@ function makeDefinition() {
             { capPropMatchName: "id-bgc", capPropUIName: "Background Color", capPropDefault: [0, 0, 0, 1] },
             { capPropMatchName: "id-bgo", capPropUIName: "Background Opacity", capPropDefault: 60 },
             { capPropMatchName: "id-so", capPropUIName: "Shadow Opacity", capPropDefault: 0 },
+            { capPropMatchName: "id-tr", capPropUIName: "Transition (ms)", capPropDefault: 150 },
+            { capPropMatchName: "id-ow", capPropUIName: "Outline Width", capPropDefault: 0 },
+            { capPropMatchName: "id-oc", capPropUIName: "Outline Color", capPropDefault: [0, 0, 0, 1] },
+            { capPropMatchName: "id-e1s", capPropUIName: "Emphasis 1 Start", capPropDefault: 0 },
+            { capPropMatchName: "id-e1e", capPropUIName: "Emphasis 1 End", capPropDefault: 0 },
+            { capPropMatchName: "id-e1c", capPropUIName: "Emphasis 1 Color", capPropDefault: [0, 0, 1, 1] },
+            { capPropMatchName: "id-e2s", capPropUIName: "Emphasis 2 Start", capPropDefault: 0 },
+            { capPropMatchName: "id-e2e", capPropUIName: "Emphasis 2 End", capPropDefault: 0 },
+            { capPropMatchName: "id-e2c", capPropUIName: "Emphasis 2 Color", capPropDefault: [0, 1, 0, 1] },
           ],
         },
       },
@@ -88,7 +107,22 @@ const TEST_STYLE: TemplateStyleValues = {
   backgroundColor: [0.06, 0.06, 0.06, 1],
   backgroundOpacity: 0,
   shadowOpacity: 60,
+  outlineWidth: 4,
+  outlineColor: [1, 0, 0, 1],
 };
+
+type ControlOrParam = { value?: unknown; capPropDefault?: unknown };
+
+function byName(definition: Definition, name: string): { control: ControlOrParam; param: ControlOrParam } {
+  const control = (definition.clientControls as unknown as {
+    uiName?: { strDB?: { str?: string }[] };
+  }[]).find((c) => c.uiName?.strDB?.[0]?.str === name);
+  const param = definition.sourceInfoLocalized.en_US.capsuleparams.capParams.find(
+    (p) => (p as { capPropUIName?: string }).capPropUIName === name
+  );
+  assert.ok(control && param, `control/param "${name}" present`);
+  return { control: control as ControlOrParam, param: param as ControlOrParam };
+}
 
 function parseResult(patched: Uint8Array) {
   const entries = unzipSync(patched);
@@ -283,6 +317,93 @@ test("Legenda Version and non-style entries stay untouched by style", () => {
   assert.equal(definition.clientControls[6].value, 1);
   assert.deepEqual([...entries["project.aegraphic"]], [1, 2, 3, 4, 5]);
   assert.deepEqual([...entries["thumb.png"]], [9, 8, 7]);
+});
+
+test("transitionMs patches the Transition (ms) control and capParam", () => {
+  const { definition } = parseResult(
+    patchTemplate(loadTemplate(makeMogrt()), { text: "Hi", label: "L1", transitionMs: 300 })
+  );
+  const { control, param } = byName(definition, "Transition (ms)");
+  assert.equal(control.value, 300);
+  assert.equal(param.capPropDefault, 300);
+});
+
+test("style writes outline width and color (v2)", () => {
+  const { definition } = parseResult(
+    patchTemplate(loadTemplate(makeMogrt()), { text: "Hi", label: "L1", style: TEST_STYLE })
+  );
+  assert.equal(byName(definition, "Outline Width").control.value, 4);
+  assert.deepEqual(byName(definition, "Outline Color").param.capPropDefault, [1, 0, 0, 1]);
+});
+
+test("emphasis slots patch start/end/color per slot", () => {
+  const { definition } = parseResult(
+    patchTemplate(loadTemplate(makeMogrt()), {
+      text: "the quick brown fox",
+      label: "L1",
+      emphasis: [
+        { start: 4, end: 9, color: [1, 0, 0, 1] },
+        { start: 16, end: 19, color: [0, 0, 1, 1] },
+      ],
+    })
+  );
+  assert.equal(byName(definition, "Emphasis 1 Start").control.value, 4);
+  assert.equal(byName(definition, "Emphasis 1 End").param.capPropDefault, 9);
+  assert.deepEqual(byName(definition, "Emphasis 1 Color").control.value, [1, 0, 0, 1]);
+  assert.equal(byName(definition, "Emphasis 2 Start").control.value, 16);
+  assert.equal(byName(definition, "Emphasis 2 End").control.value, 19);
+  assert.deepEqual(byName(definition, "Emphasis 2 Color").param.capPropDefault, [0, 0, 1, 1]);
+});
+
+test("a single emphasis slot leaves slot 2 at its authored defaults", () => {
+  const { definition } = parseResult(
+    patchTemplate(loadTemplate(makeMogrt()), {
+      text: "Hi yo",
+      label: "L1",
+      emphasis: [{ start: 0, end: 2, color: [1, 0, 0, 1] }],
+    })
+  );
+  assert.equal(byName(definition, "Emphasis 2 Start").control.value, 0);
+  assert.equal(byName(definition, "Emphasis 2 End").control.value, 0);
+});
+
+test("more than two emphasis slots are rejected (caller truncates)", () => {
+  const slot = { start: 0, end: 1, color: [1, 0, 0, 1] as [number, number, number, number] };
+  assert.throws(
+    () =>
+      patchTemplate(loadTemplate(makeMogrt()), {
+        text: "Hi",
+        label: "L1",
+        emphasis: [slot, slot, slot],
+      }),
+    /two emphasis slots/
+  );
+});
+
+test("v1-shaped template tolerates v2 patch options (controls absent = no-op)", () => {
+  const definition = makeDefinition();
+  const v1Names = new Set([
+    "Line Text", "Text Color", "Background", "Background Color",
+    "Background Opacity", "Shadow Opacity", "Legenda Version",
+  ]);
+  definition.clientControls = definition.clientControls.filter(
+    (c) => v1Names.has((c.uiName?.strDB ?? [{}])[0]?.str as string)
+  ) as typeof definition.clientControls;
+  const params = definition.sourceInfoLocalized.en_US.capsuleparams;
+  params.capParams = params.capParams.filter((p) =>
+    v1Names.has((p as { capPropUIName?: string }).capPropUIName as string)
+  ) as typeof params.capParams;
+  // Must not throw — and the v1 fields still patch.
+  const { definition: patched } = parseResult(
+    patchTemplate(loadTemplate(makeMogrt(definition)), {
+      text: "Hi",
+      label: "L1",
+      style: TEST_STYLE,
+      transitionMs: 300,
+      emphasis: [{ start: 0, end: 2, color: [1, 0, 0, 1] }],
+    })
+  );
+  assert.deepEqual(patched.clientControls[1].value, [1, 0.914, 0.29, 1]);
 });
 
 test("assigns a fresh capsuleID and the given label", () => {

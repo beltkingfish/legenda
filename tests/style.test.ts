@@ -41,6 +41,7 @@ test("Clean preset maps to template units at UHD scale", () => {
   assert.equal(v.backgroundEnabled, true);
   assert.equal(v.backgroundOpacity, 60);
   assert.equal(v.shadowOpacity, 0); // Clean has no shadow
+  assert.equal(v.outlineWidth, 0); // Clean has no outline (spec: 0 means off)
 });
 
 test("Bold preset maps accent color, weight, and shadow", () => {
@@ -56,6 +57,8 @@ test("Minimal preset: disabled background ⇒ opacity 0 (spec: 0 means off)", ()
   assert.equal(v.backgroundEnabled, false);
   assert.equal(v.backgroundOpacity, 0);
   assert.equal(v.shadowOpacity, 55);
+  assert.equal(v.outlineWidth, 4); // 2 × designScale — Minimal's outline is live
+  assert.deepEqual(v.outlineColor, [0, 0, 0, 1]);
 });
 
 test("presets are deep-cloned — mutating one does not leak", () => {
