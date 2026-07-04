@@ -11,7 +11,8 @@ in the same change. Last updated: 2026-07-02.
 | --- | --- | --- |
 | `mogrt/legenda-fade-v1.mogrt` | Fade | shipped (superseded; kept for reference) |
 | `mogrt/legenda-fade-v2.mogrt` | Fade + transition ramp + outline + emphasis slots | **shipped — renderer default** (live-verified 2026-07-03) |
-| `mogrt/legenda-teleprompter-v1.mogrt` | Teleprompter (strategy 1: `Top Row` two-instance) | **authored + contract-verified** (2026-07-03); renderer support pending |
+| `mogrt/legenda-teleprompter-v1.mogrt` | Teleprompter (two-row, cut-masked) | shipped + renderer-verified; **superseded by the v2 design** (SPECIFICATION §4 rev) |
+| `mogrt/legenda-teleprompter-v2.mogrt` | Teleprompter (three-row rising stack) | recipe ready (MOGRT_AUTHORING §D); renderer update follows the export |
 
 One MOGRT instance renders **one caption line**. The plugin inserts an instance per
 line on the plugin-owned track, trims it to the line's duration, and sets the
@@ -55,6 +56,22 @@ work — recorded here for that case.)
 | `Emphasis 2 Start` / `Emphasis 2 End` / `Emphasis 2 Color` | as slot 1 | second colored range | Two slots ⇒ up to two independently colored word-groups per line (adjacent emphasized words merge into one range; a third disjoint group is a known limit). |
 | `Duration (ms)` | slider 0–60000, default 4000 | the line's exact display duration | **Time-stretch inversion** (ARCHITECTURE hard constraint #8): Premiere uniformly stretches the comp onto the clip, so time expressions recover real clip time via `t = time × durS / thisComp.duration`. Patched on every line; default 4000 = the comp length, so AE preview behaves 1:1. Also required by the teleprompter template (blur + opacity masks). |
 | `Legenda Version` | slider, value **2** | — | |
+
+### Teleprompter v2 exposures (three-row rising stack — SPECIFICATION §4 rev; recipe MOGRT_AUTHORING §D)
+| Display name (exact) | EG control | Notes |
+| --- | --- | --- |
+| `Row` | slider 0–2, default 1 | The stack position this instance renders: 0 = bottom preview (25% opacity, 24 blur), 1 = middle current (100%, sharp), 2 = top old (25%, 24 blur). Replaces v1's `Top Row` checkbox. |
+| `Transition (ms)` | slider 0–1000, default 300 | The PUSH duration — entry motion (rise + focus/dim ramps) at each instance start; row 2 also exits (rise off + fade to 0) over the same window. Patched from the Timing field. |
+| `Duration (ms)` | slider 0–60000, default 4000 | Stretch inversion, as fade v2. |
+plus the Tier-1/2 set (Line Text, Text Color, Background, Background Color,
+Background Opacity, Shadow Opacity, Legenda Version = 2).
+
+**Cut-masking by value continuity**: each line renders as THREE instances
+(rows 0→1→2 across three consecutive slots). Every instance's entry animates
+position/opacity/blur FROM the previous row's resting values, so the cut
+between a line's instances lands exactly where the eye expects the values to
+be — the stack reads as continuous rising motion. Renderer consequence:
+**three plugin-owned tracks** (one per row).
 
 **`Text Color` mechanism change in v2 (name and value shape UNCHANGED).** The
 v1 Fill *effect* flattens all glyph color and would paint over emphasis

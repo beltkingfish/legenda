@@ -25,6 +25,7 @@ import {
 import { applyTimingToLines, type TimingSettings } from "./timing";
 import {
   planFrameTimings,
+  planTeleprompterInstances,
   PREMIERE_TICKS_PER_SECOND,
   sanitizeLineTimings,
   type CaptionLine,
@@ -34,55 +35,82 @@ import {
 /** Presets are 1080-referenced; the template comp is UHD (MOGRT_SPEC). */
 const DESIGN_SCALE = TEMPLATE_HEIGHT_PX / 1080;
 
-const TEMPLATE_PLUGIN_PATH = "mogrt/legenda-fade-v2.mogrt";
+/** Animation styles (SPECIFICATION §4) and their template files. */
+export type AnimationId = "fade" | "teleprompter";
 
-/** The template exposes two per-word color slots (MOGRT_SPEC). */
+const TEMPLATE_PATHS: Record<AnimationId, string> = {
+  fade: "mogrt/legenda-fade-v2.mogrt",
+  teleprompter: "mogrt/legenda-teleprompter-v1.mogrt",
+};
+
+/** The fade template exposes two per-word color slots (MOGRT_SPEC).
+    Teleprompter v1 has none — word colors are fade-only for now. */
 const EMPHASIS_SLOT_COUNT = 2;
 
-let cachedTemplate: MogrtTemplate | null = null;
+const templateCache = new Map<AnimationId, MogrtTemplate>();
 
-async function getTemplate(): Promise<MogrtTemplate> {
-  if (!cachedTemplate) {
-    cachedTemplate = loadTemplate(await readPluginFile(TEMPLATE_PLUGIN_PATH));
+async function getTemplate(animation: AnimationId): Promise<MogrtTemplate> {
+  let template = templateCache.get(animation);
+  if (!template) {
+    template = loadTemplate(await readPluginFile(TEMPLATE_PATHS[animation]));
+    templateCache.set(animation, template);
   }
-  return cachedTemplate;
+  return template;
 }
 
-/** Track index the last generate used; Clear operates on it. */
-let pluginTrackIndex: number | null = null;
+/** Track indexes the last generate used (bottom→top); Clear sweeps them. */
+let pluginTracks: number[] | null = null;
 
 /**
- * The plugin-owned track: the topmost video track, which must be free of
+ * The plugin-owned tracks: the topmost `count` video tracks (fade = 1;
+ * teleprompter = 2, because top-row instances overlap bottom-row ones in
+ * time and insert-splitting forbids sharing a track). Each must be free of
  * clips on first use. `insertMogrtFromPath` cannot create tracks (step-6
  * finding), and manufacturing one via insert-tricks risks shifting user
- * audio — so v1 asks the user to add an empty track instead of guessing.
+ * audio — so v1 asks the user to add empty tracks instead of guessing.
  */
-async function ensurePluginTrackIndex(sequence: {
-  getVideoTrackCount(): Promise<number>;
-  getVideoTrack(index: number): Promise<unknown>;
-}): Promise<number> {
-  const count = await sequence.getVideoTrackCount();
-  const topIndex = count - 1;
-  if (pluginTrackIndex === topIndex) {
-    return topIndex; // our track from a previous generate (about to be cleared)
-  }
-  const top = (await sequence.getVideoTrack(topIndex)) as {
-    getTrackItems(type: unknown, includeEmpty: boolean): Promise<unknown[]> | unknown[];
-  };
-  const items = await top.getTrackItems(ppro.Constants.TrackItemType.CLIP, false);
-  if ((items as unknown[]).length > 0) {
+async function ensurePluginTracks(
+  sequence: {
+    getVideoTrackCount(): Promise<number>;
+    getVideoTrack(index: number): Promise<unknown>;
+  },
+  count: number
+): Promise<number[]> {
+  const total = await sequence.getVideoTrackCount();
+  if (total < count) {
     throw new Error(
-      "The topmost video track has clips on it. Add an empty video track " +
-        "above it (right-click a track header → Add Track), then Generate again."
+      `This animation needs ${count} empty video tracks on top — add tracks ` +
+        "(right-click a track header → Add Track), then Generate again."
     );
   }
-  return topIndex;
+  const wanted: number[] = [];
+  for (let index = total - count; index < total; index++) {
+    wanted.push(index);
+  }
+  for (const index of wanted) {
+    if (pluginTracks?.includes(index)) {
+      continue; // ours from a previous generate (about to be cleared)
+    }
+    const track = (await sequence.getVideoTrack(index)) as {
+      getTrackItems(type: unknown, includeEmpty: boolean): Promise<unknown[]> | unknown[];
+    };
+    const items = await track.getTrackItems(ppro.Constants.TrackItemType.CLIP, false);
+    if ((items as unknown[]).length > 0) {
+      throw new Error(
+        `The topmost ${count === 1 ? "video track" : `${count} video tracks`} must ` +
+          "be empty for captions. Add empty video track(s) above your footage " +
+          "(right-click a track header → Add Track), then Generate again."
+      );
+    }
+  }
+  return wanted;
 }
 
 export interface GenerateResult {
   inserted: number;
   cleared: number;
-  trackIndex: number;
+  /** Plugin-owned track indexes used (bottom→top). */
+  trackIndexes: number[];
   scalePct: number;
   /** Lines dropped by timing sanitation (zero duration after clamping). */
   droppedLines: number;
@@ -147,27 +175,29 @@ async function clearPluginTrack(
   return items.length;
 }
 
-/** Public: clear the plugin track (used by the Clear button). */
+/** Public: clear the plugin track(s) (used by the Clear button). */
 export async function clearCaptions(): Promise<number> {
   const { project, sequence } = await getActiveContext();
   if (!project || !sequence) {
     throw new Error("Open a project with an active sequence first.");
   }
-  if (pluginTrackIndex === null) {
-    // Fall back to the topmost track — that is where generates go.
-    pluginTrackIndex = (await sequence.getVideoTrackCount()) - 1;
+  // Fall back to the topmost track — that is where generates go. (After a
+  // plugin reload, a previous teleprompter generate's SECOND track is
+  // unknown; regenerating with Teleprompter re-establishes both.)
+  const tracks = pluginTracks ?? [(await sequence.getVideoTrackCount()) - 1];
+  const txn = project as unknown as ProjectTxn;
+  let removed = 0;
+  for (const trackIndex of tracks) {
+    removed += await clearPluginTrack(txn, sequence, trackIndex);
   }
-  return clearPluginTrack(
-    project as unknown as ProjectTxn,
-    sequence,
-    pluginTrackIndex
-  );
+  return removed;
 }
 
 export async function generateCaptions(
   lines: CaptionLine[],
   style: StyleDef,
   timing: TimingSettings,
+  animation: AnimationId,
   onProgress?: (done: number, total: number) => void
 ): Promise<GenerateResult> {
   if (lines.length === 0) {
@@ -190,24 +220,41 @@ export async function generateCaptions(
   const timed = applyTimingToLines(lines, timing);
   const plan: FramePlanEntry[] = planFrameTimings(sanitizeLineTimings(timed), ticksPerFrame);
   const droppedLines = lines.length - plan.length;
+  // Teleprompter (MOGRT_SPEC strategy 1): two instances per line on two
+  // tracks; small gaps bridge (the line holds until the push), long gaps
+  // break the chain.
+  const instances: (FramePlanEntry & { topRow?: boolean })[] =
+    animation === "teleprompter" ? planTeleprompterInstances(plan) : plan;
 
   const txn = project as unknown as ProjectTxn;
-  const template = await getTemplate();
+  const template = await getTemplate(animation);
   const styleValues = styleToTemplateValues(style, DESIGN_SCALE);
   const frame = await sequence.getFrameSize();
-  const trackIndex = await ensurePluginTrackIndex(sequence);
+  const tracks = await ensurePluginTracks(sequence, animation === "teleprompter" ? 2 : 1);
 
-  // Regeneration over mutation: clear our previous instances first.
-  const cleared = await clearPluginTrack(txn, sequence, trackIndex);
+  // Regeneration over mutation: clear our previous instances first —
+  // including tracks a previous generate used that this one won't (e.g.
+  // teleprompter's second track after switching back to fade).
+  let cleared = 0;
+  for (const trackIndex of tracks) {
+    cleared += await clearPluginTrack(txn, sequence, trackIndex);
+  }
+  for (const trackIndex of pluginTracks ?? []) {
+    if (!tracks.includes(trackIndex)) {
+      cleared += await clearPluginTrack(txn, sequence, trackIndex);
+    }
+  }
 
   const editor = ppro.SequenceEditor.getEditor(sequence);
   let inserted = 0;
   let scalePct = 100;
   let emphasisOverflow = 0;
 
-  for (const [i, line] of plan.entries()) {
+  for (const [i, entry] of instances.entries()) {
     const label = `Legenda ${String(i + 1).padStart(3, "0")}`;
-    const slots = line.emphasisSlots ?? [];
+    // Per-word color rides the fade template's emphasis slots; teleprompter
+    // v1 has none (disclosed in the panel), so skip the mapping there.
+    const slots = animation === "fade" ? entry.emphasisSlots ?? [] : [];
     emphasisOverflow += Math.max(0, slots.length - EMPHASIS_SLOT_COUNT);
     const emphasis = slots.slice(0, EMPHASIS_SLOT_COUNT).map((slot) => ({
       start: slot.startChar,
@@ -217,27 +264,30 @@ export async function generateCaptions(
     // Real display duration — the template's time-stretch inversion anchor
     // (ARCHITECTURE hard constraint #8). Tick math stays in Number range.
     const durationMs = Math.round(
-      ((Number(line.endTicks) - Number(line.startTicks)) /
+      ((Number(entry.endTicks) - Number(entry.startTicks)) /
         PREMIERE_TICKS_PER_SECOND) *
         1000
     );
     const patched = patchTemplate(template, {
-      text: line.text,
+      text: entry.text,
       label,
-      style: applyOverrideToValues(styleValues, line.override),
+      style: applyOverrideToValues(styleValues, entry.override),
       transitionMs: timing.transitionMs,
       durationMs,
-      ...(line.runs ? { runs: line.runs } : {}),
+      ...(entry.topRow !== undefined ? { topRow: entry.topRow } : {}),
+      ...(entry.runs ? { runs: entry.runs } : {}),
       ...(emphasis.length > 0 ? { emphasis } : {}),
     });
     const path = await writeTempFile(`legenda-line-${i + 1}.mogrt`, patched);
 
+    // Bottom row (and fade) on the lowest plugin track; top row on the topmost.
+    const trackIndex = entry.topRow === true ? tracks[tracks.length - 1] : tracks[0];
     let items: unknown[] = [];
     txn.lockedAccess(() => {
       items =
         editor.insertMogrtFromPath(
           path,
-          ppro.TickTime.createWithTicks(line.startTicks) as never,
+          ppro.TickTime.createWithTicks(entry.startTicks) as never,
           trackIndex,
           0
         ) ?? [];
@@ -248,7 +298,7 @@ export async function generateCaptions(
     ) as TrackItemLike | undefined;
     if (!item) {
       throw new Error(
-        `Insert failed at line ${i + 1} of ${plan.length} ("${line.text}") — ` +
+        `Insert failed at caption ${i + 1} of ${instances.length} ("${entry.text}") — ` +
           `${inserted} caption(s) were inserted before the failure.`
       );
     }
@@ -272,7 +322,7 @@ export async function generateCaptions(
       const timeVarying = scaleParam.param.isTimeVarying();
       txn.executeTransaction((ca) => {
         ca.addAction(
-          item.createSetEndAction(ppro.TickTime.createWithTicks(line.endTicks))
+          item.createSetEndAction(ppro.TickTime.createWithTicks(entry.endTicks))
         );
         if (timeVarying) {
           ca.addAction(scaleParam.param.createSetTimeVaryingAction(false));
@@ -282,9 +332,9 @@ export async function generateCaptions(
     });
 
     inserted++;
-    onProgress?.(inserted, plan.length);
+    onProgress?.(inserted, instances.length);
   }
 
-  pluginTrackIndex = trackIndex;
-  return { inserted, cleared, trackIndex, scalePct, droppedLines, emphasisOverflow };
+  pluginTracks = tracks;
+  return { inserted, cleared, trackIndexes: tracks, scalePct, droppedLines, emphasisOverflow };
 }

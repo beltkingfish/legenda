@@ -6,10 +6,12 @@ import { test } from "node:test";
 import type { CaptionWord } from "../src/model";
 import {
   planFrameTimings,
+  planTeleprompterInstances,
   PREMIERE_TICKS_PER_SECOND,
   sanitizeLineTimings,
   wrapWords,
   type CaptionLine,
+  type FramePlanEntry,
 } from "../src/wrap";
 
 /** Word builder: sequential timing, 0.3s per word, 0.1s gap by default. */
@@ -210,4 +212,94 @@ test("planFrameTimings keeps starts monotonic after clamping", () => {
   const plan = planFrameTimings([makeLine(0, 1.999), makeLine(1.98, 3)], TPF_30);
   assert.equal(plan.length, 2);
   assert.ok(Number(plan[1].startTicks) >= Number(plan[0].endTicks));
+});
+
+// ---------------------------------------------------------------------------
+// Teleprompter instance planning (MOGRT_SPEC strategy 1)
+
+const TPS = PREMIERE_TICKS_PER_SECOND;
+
+function entry(startSec: number, endSec: number, text = "x"): FramePlanEntry {
+  return {
+    text,
+    startTicks: String(startSec * TPS),
+    endTicks: String(endSec * TPS),
+  };
+}
+
+test("contiguous lines: bottom holds to the next start; top rides the next slot", () => {
+  const plan = [entry(0, 2, "a"), entry(2, 4, "b"), entry(4, 5, "c")];
+  const out = planTeleprompterInstances(plan);
+  assert.deepEqual(
+    out.map((o) => [o.text, o.topRow, Number(o.startTicks) / TPS, Number(o.endTicks) / TPS]),
+    [
+      ["a", false, 0, 2], // bottom over its own slot
+      ["a", true, 2, 4], // top while "b" holds the bottom
+      ["b", false, 2, 4],
+      ["b", true, 4, 5],
+      ["c", false, 4, 5], // last line: no top instance
+    ]
+  );
+});
+
+test("a small gap bridges: bottom extends across it to the next start", () => {
+  const out = planTeleprompterInstances([entry(0, 2, "a"), entry(3, 4, "b")]); // 1s gap
+  assert.deepEqual(
+    out.map((o) => [o.text, o.topRow, Number(o.endTicks) / TPS]),
+    [
+      ["a", false, 3], // held through the gap
+      ["a", true, 4],
+      ["b", false, 4],
+    ]
+  );
+});
+
+test("a long gap breaks the chain: no hold, no push", () => {
+  const out = planTeleprompterInstances([entry(0, 2, "a"), entry(4, 5, "b")]); // 2s gap
+  assert.deepEqual(
+    out.map((o) => [o.text, o.topRow, Number(o.endTicks) / TPS]),
+    [
+      ["a", false, 2], // exits at its own end (blur-masked)
+      ["b", false, 5],
+    ]
+  );
+});
+
+test("a single line yields a single bottom instance", () => {
+  const out = planTeleprompterInstances([entry(1, 3, "solo")]);
+  assert.deepEqual(
+    out.map((o) => [o.text, o.topRow]),
+    [["solo", false]]
+  );
+});
+
+test("per-line styling metadata rides BOTH of a line's instances", () => {
+  const styled: FramePlanEntry = {
+    ...entry(0, 2, "a"),
+    override: { color: "#FF0000", italic: true },
+    runs: [{ length: 1, italic: true }],
+    emphasisSlots: [{ startChar: 0, endChar: 1, color: "#00FF00" }],
+  };
+  const out = planTeleprompterInstances([styled, entry(2, 4, "b")]);
+  const aInstances = out.filter((o) => o.text === "a");
+  assert.equal(aInstances.length, 2);
+  for (const instance of aInstances) {
+    assert.deepEqual(instance.override, styled.override);
+    assert.deepEqual(instance.runs, styled.runs);
+    assert.deepEqual(instance.emphasisSlots, styled.emphasisSlots);
+  }
+});
+
+test("instances on the same row never overlap in time", () => {
+  const plan = [entry(0, 2), entry(2, 3.5), entry(4, 6), entry(7.8, 9)];
+  const out = planTeleprompterInstances(plan);
+  for (const row of [false, true]) {
+    const rowInstances = out.filter((o) => o.topRow === row);
+    for (let i = 1; i < rowInstances.length; i++) {
+      assert.ok(
+        Number(rowInstances[i].startTicks) >= Number(rowInstances[i - 1].endTicks),
+        `row ${row} instance ${i} starts after the previous ends`
+      );
+    }
+  }
 });

@@ -287,6 +287,85 @@ it).**
 
 ---
 
+## §D. legenda-teleprompter-v2 (three-row rising stack — SPECIFICATION §4 rev)
+
+Maintainer-directed redesign (2026-07-04): THREE lines visible — upcoming
+line previews dim/blurred at the bottom, current line sharp in the middle,
+previous line dim/blurred at the top — and the stack **physically rises**
+with each new line. Cuts between a line's three instances are masked by
+VALUE CONTINUITY: every instance's entry animates from the previous row's
+resting values, so position/opacity/blur are seamless across the cut.
+Rows rest at (UHD): y **1880 / 1720 / 1560**, opacity **25 / 100 / 25**,
+blur **24 / 0 / 24**; the top row exits by rising another 160 px to 0%.
+
+### D0. Comp
+- Duplicate **Legenda Teleprompter v1** → rename **"Legenda Teleprompter v2"**;
+  EG panel Name `Legenda Teleprompter v2`. Set `Legenda Version` to **2**
+  (Edit Range 2–2 after exposing).
+
+### D1. Controls
+- Add a **Slider Control** → rename **`Row`**, value **1** (0 = bottom
+  preview · 1 = middle current · 2 = top old).
+- `Transition (ms)` already sits on this Controls layer (inherited from the
+  fade duplicate, unexposed) — set it to **300**; it becomes the PUSH
+  duration. `Duration (ms)` stays as-is.
+
+### D2. Position (replace the Top Row expression)
+- **Caption Text → Transform → Position**:
+  ```js
+  const row = thisComp.layer("Controls").effect("Row")("Slider");
+  const durS = thisComp.layer("Controls").effect("Duration (ms)")("Slider") / 1000;
+  const push = Math.max(thisComp.layer("Controls").effect("Transition (ms)")("Slider") / 1000, 0.001);
+  const t = time * durS / thisComp.duration;
+  const ys = [1880, 1720, 1560];
+  let y = row == 0 ? ys[0] : linear(t, 0, push, ys[row - 1], ys[row]);
+  if (row == 2) y = Math.min(y, linear(t, durS - push, durS, ys[2], ys[2] - 160));
+  [1920, y]
+  ```
+
+### D3. Opacity (replace)
+- **Caption Text → Transform → Opacity**:
+  ```js
+  const row = thisComp.layer("Controls").effect("Row")("Slider");
+  const durS = thisComp.layer("Controls").effect("Duration (ms)")("Slider") / 1000;
+  const push = Math.max(thisComp.layer("Controls").effect("Transition (ms)")("Slider") / 1000, 0.001);
+  const t = time * durS / thisComp.duration;
+  const os = [25, 100, 25];
+  const oIn = row == 0 ? linear(t, 0, push, 0, os[0]) : linear(t, 0, push, os[row - 1], os[row]);
+  const oOut = row == 2 ? linear(t, durS - push, durS, os[2], 0) : os[row];
+  Math.min(oIn, oOut)
+  ```
+
+### D4. Blurriness (replace)
+- **Caption Text → Gaussian Blur → Blurriness**:
+  ```js
+  const row = thisComp.layer("Controls").effect("Row")("Slider");
+  const durS = thisComp.layer("Controls").effect("Duration (ms)")("Slider") / 1000;
+  const push = Math.max(thisComp.layer("Controls").effect("Transition (ms)")("Slider") / 1000, 0.001);
+  const t = time * durS / thisComp.duration;
+  const bs = [24, 0, 24];
+  const bIn = row == 0 ? linear(t, 0, push, 32, bs[0]) : linear(t, 0, push, bs[row - 1], bs[row]);
+  const bOut = row == 2 ? linear(t, durS - push, durS, bs[2], 32) : bs[row];
+  Math.max(bIn, bOut)
+  ```
+
+### D5. EG panel + export
+- **Remove the `Top Row` entry** (superseded). Add: **`Row`** (slider, Edit
+  Range 0–2) and **`Transition (ms)`** (slider, 0–1000). Keep `Duration (ms)`
+  and the Tier-1/2 set; `Legenda Version` (2) last.
+- Export → `mogrt/legenda-teleprompter-v2.mogrt` (keep v1's file; the
+  renderer switches when the plugin update lands).
+
+### D6. Eyeball before export
+- `Row` 1, defaults: sharp middle line; scrub the start — it should RISE from
+  the bottom position while focusing 25→100.
+- `Row` 0: dim blurred line at the bottom, fading in at the start.
+- `Row` 2: dim blurred line up top; scrub the END — it rises off while fading
+  to 0. If all three read right, the butted sequence is guaranteed continuous
+  by construction (shared boundary values).
+
+---
+
 ## 0. Prerequisites
 - Activate **Montserrat** (Bold; also ExtraBold + SemiBold for the other presets)
   via Creative Cloud → Manage Fonts (Adobe Fonts), so it's available in AE and

@@ -406,8 +406,34 @@ Last updated: 2026-07-03.
   italic ✓. Only the cosmetic overflow-message check (3+ colored word-groups)
   remains unexercised.
 
+- 2026-07-04 — Teleprompter renderer built (Phase 2's last animation step).
+  `planTeleprompterInstances` (pure, tested): per line a BOTTOM instance over
+  its own slot — extended across gaps ≤ 1.5 s so the line holds until the
+  push — plus, when bridged, a TOP instance riding the next line's slot;
+  long gaps break the chain (no push over silences); last line exits at the
+  bottom blur-masked; same-row instances proven non-overlapping. Renderer:
+  per-animation template selection, TWO plugin-owned tracks for teleprompter
+  (bottom row on the lower, `Top Row` patched per instance), clear sweeps all
+  recorded plugin tracks incl. stale ones after switching animation. Panel:
+  Animation section (Fade · Teleprompter) with the teleprompter limitations
+  hint (per-word color + Transition are fade-only in template v1). 121 tests.
+
+- 2026-07-04 — **Teleprompter renderer verified live** (both animations lay
+  correctly; 75 instances on tracks 2–3). Maintainer redesign directed from
+  the result: the two-row cut-masked version reads OK but the real intent is
+  a **three-row rising stack** — upcoming line previews dim/blurred below,
+  current sharp in the middle, previous dim/blurred above, all physically
+  rising on Y with each push. SPECIFICATION §4 revised; teleprompter v2
+  contract in MOGRT_SPEC (Row slider 0–2 replaces Top Row; Transition (ms)
+  becomes the push duration — the Timing field turns meaningful for
+  teleprompter); full recipe in MOGRT_AUTHORING §D. Cut-masking upgrades from
+  blur to VALUE CONTINUITY (each instance's entry animates from the previous
+  row's resting values). Renderer follow-up once v2 exports: three instances
+  per line, THREE plugin tracks, Row patched per instance.
+
 ## In progress
-- (none)
+- Teleprompter v2 template (maintainer AE session, §D) → then the renderer
+  three-row update.
 
 ## Next (Phase 2 build order)
 1. ~~Per-word italic emphasis~~ — done, verified live.
@@ -416,11 +442,22 @@ Last updated: 2026-07-03.
 3. ~~Custom style save/load~~ — done, verified live (incl. persistence across
    plugin restart).
 4. ~~Style export/import~~ — done, verified live (full round trip).
-5. Teleprompter renderer + Animation selector (Teleprompter · Fade,
-   UI_COMPONENTS §3): two instances per line (`Top Row` patched per instance),
-   SECOND plugin-owned track for the overlapping top row, clear sweeps both
-   tracks. Template is authored + contract-verified; build AFTER the step-2
-   live checks pass.
+5. ~~Teleprompter renderer (two-row)~~ — done, verified live; superseded by
+   the three-row rising-stack redesign (SPECIFICATION §4 rev).
+6. Teleprompter v2 template (§D recipe) → renderer three-row update (three
+   instances/line, three plugin tracks, `Row` patched).
+7. Teleprompter texture pass (v2.1, AFTER the stack mechanism proves live):
+   fogged-glass blurred rows — blur + lifted blacks/contrast + subtle
+   Turbulent Displace shimmer, intensity keyed to `Row` (SPECIFICATION §4
+   aesthetic note). Comp-internal; zero new API surface.
+8. Caption position as a STYLE property (SPECIFICATION §2 addition): expose
+   `Position X`/`Position Y` on BOTH templates (row math becomes offsets from
+   the anchor), StyleDef gains position, panel gains anchor presets + fine
+   X/Y in Caption Style, patcher writes two numbers. Saves into custom
+   styles / export-import automatically.
+- Still queued: Adobe escalation draft (crashes + time-stretch finding),
+  overflow-message spot-check, custom track auto-creation, clip-offset time
+  base, EXP-001 easing tier decision.
 - Still queued: Adobe escalation (text API + UXP crash package), custom track
   auto-creation, clip-offset time base.
 - Side quests / unproven ideas live in `docs/EXPERIMENTS.md` (currently:

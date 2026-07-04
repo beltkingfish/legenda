@@ -285,6 +285,8 @@ export interface PatchOptions {
    * and place intro/outro ramps in real clip time.
    */
   durationMs?: number;
+  /** Teleprompter row switch — the `Top Row` checkbox (teleprompter v1). */
+  topRow?: boolean;
   /**
    * Per-word color ranges in template units (0-based char start, exclusive
    * end, [r,g,b,a] color). Max TWO — the template's slot count; the caller
@@ -323,6 +325,9 @@ export function patchTemplate(
   }
   if (options.durationMs !== undefined) {
     setSimpleControl(definition, "Duration (ms)", options.durationMs);
+  }
+  if (options.topRow !== undefined) {
+    setSimpleControl(definition, "Top Row", options.topRow);
   }
   if (options.emphasis) {
     if (options.emphasis.length > 2) {
