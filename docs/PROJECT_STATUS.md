@@ -2,8 +2,10 @@
 
 Update this at the end of any session with meaningful changes (see CLAUDE.md → Update ritual).
 
-Current phase: **Phase 2 — step 1 (per-word italic emphasis) done and verified live.
-Phase 1 close items still open: teleprompter template + template v2 authoring.**
+Current phase: **Phase 2 — steps 1/3/4 verified live; step 2 + v2 wiring BUILT,
+awaiting live verify. BOTH remaining templates authored + contract-verified
+(fade v2 live-proven; teleprompter renderer support not yet built) —
+Phase 1's template debt is closed.**
 Last updated: 2026-07-03.
 
 ## Done
@@ -296,23 +298,109 @@ Last updated: 2026-07-03.
   italic run between two upright runs. Per-text-run styling is now a proven
   capability of the patch channel.
 
+- 2026-07-03 — Phase 2 step 3 built (step 2 leapfrogged — it waits on the AE
+  recolor experiment): custom style save/load (SPECIFICATION §6, UI_COMPONENTS
+  §2). `src/customStyles.ts`: a saved style is a StyleDef + id + name — the
+  exact presets/style-presets.json entry shape; identity = slugified name (so
+  re-saving a name updates in place); tolerant parse skips bad entries without
+  losing the collection; file shape = presets schema + version (the §10
+  export/import shape, on purpose). Persistence via UXP
+  `localFileSystem.getDataFolder()` (verified in cc-ext-uxp-types) as
+  custom-styles.json — plugin-level, survives projects. Panel: "Save as custom
+  style…" reveals an inline name row; "My styles" dropdown (visible once one
+  exists) loads into the working controls; Delete uses confirm-once. Editing
+  any control deselects the loaded style (working style diverged). 95 tests.
+
+- 2026-07-03 — **Step 3 verified live, full loop**: style "orioles" saved →
+  plugin stopped + reloaded in UDT → style still listed → loaded → cleared +
+  regenerated → renders the saved look (orange bar, 80% opacity). **Platform
+  gate passed: `getDataFolder()` write/read works in Premiere's UXP runtime**
+  — persistent plugin-level storage is now a proven capability (also
+  de-risks step 4 export/import, which uses the same file shape).
+
+- 2026-07-03 — Phase 2 step 4 built: style export/import (SPECIFICATION §10).
+  Export writes the current working style (named after the loaded saved style,
+  else the active preset) via `getFileForSaving` (verified in cc-ext-uxp-types)
+  as a single-entry custom-styles.json-shaped file — so import needs no second
+  parser. Import merges with save semantics (same slug updates in place; a
+  multi-style file works too), auto-loads single-style files into the working
+  controls, and reports skipped unreadable entries. 97 tests.
+
+- 2026-07-03 — **Step 4 verified live, full round trip**: "orioles" exported →
+  deleted from My styles → imported back → loads and renders. **Platform gate
+  passed: `getFileForSaving` works in Premiere's UXP runtime** — every file API
+  the plugin uses is now live-proven. Byte-audit of the exported artifact found
+  one leak: the working style carried the source PRESET's `description` (e.g.
+  Minimal's text on an orange style) into saves/exports, because `getPreset`
+  returned the whole catalog entry. Fixed at both choke points: `getPreset`
+  strips id/name/description; `makeCustomStyle` strips leftovers from styles
+  saved before the fix. 98 tests.
+
+- 2026-07-03 — **COLORTEST experiment ANSWERED: per-word color patch route
+  CLOSED.** The maintainer authored a red middle word and exported; the
+  embedded .aep differs from v1 (change landed) yet definition.json gained no
+  new keys and `capPropTextRunCount` stayed 1 — fill color doesn't even
+  create a run boundary; the serialization tracks font-edit properties only.
+  **Route decided instead: emphasis slots** — text animators whose range
+  (character indices) and color are driven by exposed sliders/color controls,
+  i.e. proven patch primitives; requires moving base `Text Color` from the
+  Fill effect to a base animator (same exposed name + value shape ⇒ no
+  patcher change for base color). Two slots ⇒ up to two colored word-groups
+  per line (documented limit). Folded into the fade v2 recipe
+  (MOGRT_AUTHORING §B3); contract in MOGRT_SPEC "Fade v2 exposures".
+  Plugin-side work (word→char-range mapping, slot patching, editor color per
+  word) follows once v2 is exported and the animator route passes its live
+  gate.
+
+- 2026-07-03 — **Crash #3 analyzed: identical signature, third confirmation.**
+  New Sentry dump (preserved in crash-reports/) parsed with the rebuilt
+  minidump parser (now committed: `scripts/parse-minidump.py` — the scratchpad
+  copy had the pre-fix THREAD offsets). Backtrace matches crashes #1–2
+  FRAME-FOR-FRAME (module-relative): JS → libdynamic-napi → the same Premiere
+  UXP host-API cluster (`+0xaa5f874 → +0xaa575ec → +0xaa58d38 → +0xaa69b1c…`).
+  Only the garbage pointer differs (near-NULL 0x11 vs in-image address) —
+  consistent with a use-after-free at one code site. Escalation package is now
+  three dumps, one deterministic signature. **Action at time of crash, all
+  three: the generate workload** (#1 style changes + regenerates, #2 near
+  Apply-to-all, #3 right after Generate following a probe insert of v2) —
+  never panel-idle work. Consistent with the insert → lazy-capsule-poll →
+  transaction loop stressing the buggy host-API path.
+
+- 2026-07-03 — **Template v2 authored (maintainer AE session, guided) and its
+  three unproven mechanisms LIVE-VERIFIED in Premiere** via probe insert +
+  Properties-panel drive: (1) expression-driven `Transition (ms)` visibly
+  changes the fade — **EXPERIMENTS EXP-001 gate PASSED**; (2) emphasis-slot
+  animators recolor exact char ranges — per-word color route proven; (3)
+  layer-style Stroke outline renders. Contract byte-verified before Premiere
+  (all 16 names/shapes/ranges/defaults). v2 committed with AE source.
+- 2026-07-03 — Phase 2 step 2 + v2 wiring built: renderer ships
+  legenda-fade-v2; Timing's Transition field now LIVE (patched per line);
+  Outline controls added to Caption Style (Minimal's authored outline finally
+  renders); word editor redesigned select-then-edit (click chip → italic
+  checkbox + word color field; chips tint in their color); word colors map to
+  emphasis slots via `buildEmphasisSlots` (char ranges, adjacent same-color
+  merge, 2-slot truncation reported in the generate status). SPECIFICATION §7
+  records the 2-slot limit. 113 tests.
+
 ## In progress
-- (none)
+- **Step 2 / v2-wiring live checks**: (a) Transition duration field changes
+  generated fades (150 vs 500); (b) Minimal preset renders its outline; (c)
+  word color override renders on the exact word; (d) per-word italic still
+  renders (no run-array regression); (e) 3+ colored word-groups on one line →
+  status reports the skip.
 
 ## Next (Phase 2 build order)
 1. ~~Per-word italic emphasis~~ — done, verified live.
-2. Per-word color — **gated on a 5-minute AE experiment**: recolor one word of
-   the Line Text in `mogrt_build.aep`, re-export the MOGRT, diff definition.json.
-   If the exporter emits a per-run color field → wire it like italic. If not →
-   the patch route is closed; spec-first decision (descope per-word color to the
-   Properties-panel finishing pass, or template redesign).
-3. Custom style save/load — "Save as custom style…" (UI_COMPONENTS §2); presets
-   and custom styles are the same data shape (SPECIFICATION §6).
-4. Style export/import — JSON file, presets schema + version field
-   (SPECIFICATION §10).
-5. Additional animations/presets — after the Phase 1 close items: teleprompter
-   template (MOGRT_SPEC strategies) + template v2 exposures (transition ramp,
-   line height, letter spacing, alignment, outline).
+2. Per-word color — built on the v2 emphasis slots; live verify pending
+   (see In progress).
+3. ~~Custom style save/load~~ — done, verified live (incl. persistence across
+   plugin restart).
+4. ~~Style export/import~~ — done, verified live (full round trip).
+5. Teleprompter renderer + Animation selector (Teleprompter · Fade,
+   UI_COMPONENTS §3): two instances per line (`Top Row` patched per instance),
+   SECOND plugin-owned track for the overlapping top row, clear sweeps both
+   tracks. Template is authored + contract-verified; build AFTER the step-2
+   live checks pass.
 - Still queued: Adobe escalation (text API + UXP crash package), custom track
   auto-creation, clip-offset time base.
 - Side quests / unproven ideas live in `docs/EXPERIMENTS.md` (currently:

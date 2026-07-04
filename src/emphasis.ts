@@ -12,13 +12,15 @@
 // are the single source of truth for the line's italics.
 
 import type { CaptionWord } from "./model";
-import type { StyleRun } from "./style";
+import type { EmphasisSlot, StyleRun } from "./style";
 import type { CaptionLine } from "./wrap";
 
 export interface WordEmphasis {
   /** The canonical word's text at emphasis time — the reconcile guard. */
   text: string;
   italic?: boolean;
+  /** #RRGGBB — renders via a template emphasis slot (template v2). */
+  color?: string;
 }
 
 /** Keyed by index into the canonical word list. */
@@ -31,14 +33,16 @@ export function reconcileWordEmphasis(
 ): WordEmphasisMap {
   const out: WordEmphasisMap = new Map();
   for (const [index, entry] of map) {
-    if (words[index]?.text === entry.text && entry.italic === true) {
+    const styled = entry.italic === true || entry.color !== undefined;
+    if (words[index]?.text === entry.text && styled) {
       out.set(index, entry);
     }
   }
   return out;
 }
 
-/** True when any word in the line's range carries emphasis. */
+/** True when any word in the line's range carries ITALIC emphasis
+    (gates the per-run patch path; color rides slots, not runs). */
 export function lineHasWordEmphasis(
   line: Pick<CaptionLine, "firstWord" | "lastWord">,
   map: WordEmphasisMap
@@ -49,6 +53,37 @@ export function lineHasWordEmphasis(
     }
   }
   return false;
+}
+
+/**
+ * Per-word COLOR ranges for one line (template v2 emphasis slots), or
+ * undefined when no word in the range is colored. Char indices are into the
+ * line text (words joined with single spaces); a colored word covers its own
+ * characters only, but adjacent same-color words merge across the space
+ * between them (one slot). ALL ranges are returned — the renderer takes the
+ * template's two slots and counts the rest as overflow.
+ */
+export function buildEmphasisSlots(
+  line: Pick<CaptionLine, "firstWord" | "lastWord">,
+  words: CaptionWord[],
+  map: WordEmphasisMap
+): EmphasisSlot[] | undefined {
+  const slots: EmphasisSlot[] = [];
+  let offset = 0;
+  for (let w = line.firstWord; w <= line.lastWord; w++) {
+    const length = words[w].text.length;
+    const color = map.get(w)?.color;
+    if (color !== undefined) {
+      const previous = slots[slots.length - 1];
+      if (previous && previous.color === color && previous.endChar === offset - 1) {
+        previous.endChar = offset + length; // bridge the single space
+      } else {
+        slots.push({ startChar: offset, endChar: offset + length, color });
+      }
+    }
+    offset += length + 1; // the joining space
+  }
+  return slots.length > 0 ? slots : undefined;
 }
 
 /**

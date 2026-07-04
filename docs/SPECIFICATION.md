@@ -48,7 +48,10 @@ Exact values live in `presets/style-presets.json`.
 - **Per-caption / per-word overrides**: the user can override color and toggle italics on
   individual words for emphasis (e.g. an interviewee stressing a word). Phase 1 targets
   line-level override reliably; per-word override is staged (see §9). Overrides persist
-  through global updates unless explicitly cleared.
+  through global updates unless explicitly cleared. Known limit (template
+  constraint, 2026-07-03): per-word COLOR renders via two template emphasis
+  slots — up to two colored word-groups per line (adjacent same-color words
+  merge); further groups are skipped with a notice, never silently.
 - **Native finishing pass (clarified 2026-07-03)**: because the templates expose their
   params, Premiere's own Properties panel can hand-tune any individual caption instance
   (fonts, sizes, colors, even the text — useful for one-off fixes the plugin cannot make).

@@ -199,6 +199,18 @@ body {
   display: block;
 }
 
+/* Custom styles (UI_COMPONENTS §2): both rows reveal on demand. */
+.save-style-row,
+.my-styles-row {
+  display: none;
+  margin-top: 6px;
+}
+
+.save-style-row.is-visible,
+.my-styles-row.is-visible {
+  display: block;
+}
+
 /* Word-emphasis chips (UI_COMPONENTS §5). UXP ignores flex `gap` — margins. */
 .word-chips {
   margin-top: 4px;
@@ -218,8 +230,27 @@ body {
 
 .word-chip.is-italic {
   font-style: italic;
-  border-color: var(--accent);
   color: #ffffff;
+}
+
+.word-chip.has-emphasis {
+  border-color: var(--accent);
+}
+
+.word-chip.is-selected {
+  background-color: var(--accent);
+  color: #ffffff;
+}
+
+.word-editor {
+  display: none;
+  margin-top: 4px;
+  padding-left: 8px;
+  border-left: 2px solid var(--border);
+}
+
+.word-editor.is-visible {
+  display: block;
 }
 
 .line-time {

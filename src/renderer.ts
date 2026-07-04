@@ -16,7 +16,12 @@ import {
 } from "./params";
 import ppro from "./ppro";
 import { getActiveContext } from "./premiere";
-import { applyOverrideToValues, styleToTemplateValues, type StyleDef } from "./style";
+import {
+  applyOverrideToValues,
+  hexToRgba,
+  styleToTemplateValues,
+  type StyleDef,
+} from "./style";
 import { applyTimingToLines, type TimingSettings } from "./timing";
 import {
   planFrameTimings,
@@ -29,7 +34,10 @@ import {
 /** Presets are 1080-referenced; the template comp is UHD (MOGRT_SPEC). */
 const DESIGN_SCALE = TEMPLATE_HEIGHT_PX / 1080;
 
-const TEMPLATE_PLUGIN_PATH = "mogrt/legenda-fade-v1.mogrt";
+const TEMPLATE_PLUGIN_PATH = "mogrt/legenda-fade-v2.mogrt";
+
+/** The template exposes two per-word color slots (MOGRT_SPEC). */
+const EMPHASIS_SLOT_COUNT = 2;
 
 let cachedTemplate: MogrtTemplate | null = null;
 
@@ -78,6 +86,8 @@ export interface GenerateResult {
   scalePct: number;
   /** Lines dropped by timing sanitation (zero duration after clamping). */
   droppedLines: number;
+  /** Word-color ranges beyond the template's two slots (skipped). */
+  emphasisOverflow: number;
 }
 
 /** Remove every clip item on the plugin-owned track. Returns removed count. */
@@ -193,14 +203,24 @@ export async function generateCaptions(
   const editor = ppro.SequenceEditor.getEditor(sequence);
   let inserted = 0;
   let scalePct = 100;
+  let emphasisOverflow = 0;
 
   for (const [i, line] of plan.entries()) {
     const label = `Legenda ${String(i + 1).padStart(3, "0")}`;
+    const slots = line.emphasisSlots ?? [];
+    emphasisOverflow += Math.max(0, slots.length - EMPHASIS_SLOT_COUNT);
+    const emphasis = slots.slice(0, EMPHASIS_SLOT_COUNT).map((slot) => ({
+      start: slot.startChar,
+      end: slot.endChar,
+      color: hexToRgba(slot.color),
+    }));
     const patched = patchTemplate(template, {
       text: line.text,
       label,
       style: applyOverrideToValues(styleValues, line.override),
+      transitionMs: timing.transitionMs,
       ...(line.runs ? { runs: line.runs } : {}),
+      ...(emphasis.length > 0 ? { emphasis } : {}),
     });
     const path = await writeTempFile(`legenda-line-${i + 1}.mogrt`, patched);
 
@@ -258,5 +278,5 @@ export async function generateCaptions(
   }
 
   pluginTrackIndex = trackIndex;
-  return { inserted, cleared, trackIndex, scalePct, droppedLines };
+  return { inserted, cleared, trackIndex, scalePct, droppedLines, emphasisOverflow };
 }

@@ -18,8 +18,13 @@ sessions, explicitly out of scope until they graduate. Last updated: 2026-07-03.
 
 ## EXP-001 · Curve editor for caption transition easing
 
-**Status: proposed** (2026-07-03) · Branch: `spike/curve-easing` (not yet cut)
-· Sequencing: after step 10 and alongside the template-v2 authoring wave.
+**Status: GATE PASSED** (2026-07-03) — no spike branch was needed: template v2's
+`Transition (ms)` slider (expression-driven opacity ramps) IS the gate, and the
+maintainer live-verified it in Premiere via the Properties panel (150 vs 500 ms
+visibly different fades on an inserted instance); the patch-channel half is the
+standard number patch, wired the same day (Timing field → per-line patch).
+Remaining before graduation: choose the easing tier (dropdown presets vs curve
+widget) and take it through SPECIFICATION — unscheduled.
 
 **Idea.** A panel curve editor (style-level, saved like any style property)
 that shapes the timing/easing of caption enter/exit animation. A plain easing

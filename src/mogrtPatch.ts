@@ -14,7 +14,7 @@
 // globals (confirmed live 2026-07-02) — fflate's helpers cover UTF-8.
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 
-import type { StyleRun, TemplateStyleValues } from "./style";
+import type { Rgba, StyleRun, TemplateStyleValues } from "./style";
 
 interface StrDbEntry {
   localeString?: string;
@@ -155,6 +155,9 @@ function applyStyle(definition: DefinitionJson, style: TemplateStyleValues): voi
   setSimpleControl(definition, "Background Color", style.backgroundColor);
   setSimpleControl(definition, "Background Opacity", style.backgroundOpacity);
   setSimpleControl(definition, "Shadow Opacity", style.shadowOpacity);
+  // v2 exposures; setSimpleControl no-ops on templates without them (v1).
+  setSimpleControl(definition, "Outline Width", style.outlineWidth);
+  setSimpleControl(definition, "Outline Color", style.outlineColor);
 
   const lineText = findControl(definition, LINE_TEXT);
   const italic = style.italic ?? false;
@@ -273,6 +276,14 @@ export interface PatchOptions {
    * by the builder); lengths must sum exactly to `text.length`.
    */
   runs?: StyleRun[];
+  /** Fade ramp duration — the `Transition (ms)` control (template v2). */
+  transitionMs?: number;
+  /**
+   * Per-word color ranges in template units (0-based char start, exclusive
+   * end, [r,g,b,a] color). Max TWO — the template's slot count; the caller
+   * truncates and reports overflow.
+   */
+  emphasis?: { start: number; end: number; color: Rgba }[];
 }
 
 /** Produce a patched .mogrt (as zip bytes) for one caption line. */
@@ -299,6 +310,19 @@ export function patchTemplate(
   }
   if (options.style) {
     applyStyle(definition, options.style);
+  }
+  if (options.transitionMs !== undefined) {
+    setSimpleControl(definition, "Transition (ms)", options.transitionMs);
+  }
+  if (options.emphasis) {
+    if (options.emphasis.length > 2) {
+      throw new Error("The template has two emphasis slots — truncate before patching.");
+    }
+    options.emphasis.forEach((slot, i) => {
+      setSimpleControl(definition, `Emphasis ${i + 1} Start`, slot.start);
+      setSimpleControl(definition, `Emphasis ${i + 1} End`, slot.end);
+      setSimpleControl(definition, `Emphasis ${i + 1} Color`, slot.color);
+    });
   }
   if (options.runs) {
     const covered = options.runs.reduce((sum, run) => sum + run.length, 0);

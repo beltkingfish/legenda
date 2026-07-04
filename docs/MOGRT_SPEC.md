@@ -9,8 +9,9 @@ in the same change. Last updated: 2026-07-02.
 ## Files
 | File | Animation | Status |
 | --- | --- | --- |
-| `mogrt/legenda-fade-v1.mogrt` | Fade | to author (first) |
-| `mogrt/legenda-teleprompter-v1.mogrt` | Teleprompter | to author (after fade proves the pipeline) |
+| `mogrt/legenda-fade-v1.mogrt` | Fade | shipped (superseded; kept for reference) |
+| `mogrt/legenda-fade-v2.mogrt` | Fade + transition ramp + outline + emphasis slots | **shipped — renderer default** (live-verified 2026-07-03) |
+| `mogrt/legenda-teleprompter-v1.mogrt` | Teleprompter (strategy 1: `Top Row` two-instance) | **authored + contract-verified** (2026-07-03); renderer support pending |
 
 One MOGRT instance renders **one caption line**. The plugin inserts an instance per
 line on the plugin-owned track, trims it to the line's duration, and sets the
@@ -27,12 +28,14 @@ exposed parameters. All animation lives inside the template (ARCHITECTURE §2.3)
 | `Background Color` | color (shape fill) | `background.color` | |
 | `Background Opacity` | slider 0–100 | `background.opacity` (×100); `0` ⇒ `background.enabled: false` — **no checkbox** | See note below. |
 
-**No `Background` checkbox.** The probe (2026-07-02) showed a checkbox param
-surfaces with an **empty displayName** — unmatchable by our name-based lookup.
-So background on/off is encoded the same way as shadow/outline: `Background
-Opacity` `0` means off. Template's bg-opacity expression drops the checkbox
-factor. (Fold into the next fade export; the current template still works for
-everything except driving the checkbox by name.)
+**`Background` checkbox — decision reversed (2026-07-03).** The probe
+(2026-07-02) showed checkbox params surface with an empty displayName —
+unmatchable via the ComponentParam API — and we planned to drop the checkbox.
+The PATCH channel made that moot: checkboxes are matched by `uiName` in
+definition.json and drivable at patch time (proven live, step 8). The shipped
+v1 kept the checkbox and the renderer drives it; **v2 keeps it too**. (The
+empty-displayName limitation still holds for any future ComponentParam-path
+work — recorded here for that case.)
 
 ### Tier 2 — desired (native EG exposure exists; add after Tier 1 works)
 | Display name (exact) | EG control | Maps to StyleDef |
@@ -41,17 +44,41 @@ everything except driving the checkbox by name.)
 | `Font Size` | font size (Source Text → Edit Properties) | `typography.fontSize` |
 | `Shadow Opacity` | slider 0–100 (Drop Shadow effect's Opacity) | `dropShadow.opacity` (×100); `0` ⇒ `dropShadow.enabled: false` — no separate checkbox |
 
-### Tier 3 — deferred (not in v1; renderer must tolerate their absence)
-- `Outline Width` / `Outline Color` (needs text style expressions —
-  `setApplyStroke`/`setStrokeWidth` — fragile alongside EG-editable text; width `0`
-  ⇒ disabled, no checkbox), `Letter Spacing` (same style-expression route),
-  `Line Height` (leading exposure from EG is uncertain), text `Alignment`
-  (paragraph alignment is not directly exposable), background `cornerRadius` /
-  `paddingX` / `paddingY` (bake preset-typical values into the template),
-  shadow blur/distance, per-word italic/color slots (Phase 2, ARCHITECTURE §9),
-  `Transition (ms)` as a slider driving animation timing via expressions —
-  author fade v1 with a **fixed ≈150 ms (5 frames @ 30 fps)** intro/outro first;
-  attempt the expression-driven slider only once the fixed version works end to end.
+### Fade v2 exposures (recipe: MOGRT_AUTHORING §B; renderer must tolerate absence on v1)
+| Display name (exact) | EG control | Maps to | Notes |
+| --- | --- | --- | --- |
+| `Transition (ms)` | slider 0–1000, default 150 | `TimingSettings.transitionMs` | Expression-driven opacity ramps; protected regions widened to 500 ms each, so >500 ms ramps render time-stretched. This IS the EXPERIMENTS EXP-001 gate. |
+| `Outline Width` | slider 0–32, default 0 | `outline.width` (×designScale); `0` ⇒ `outline.enabled: false` — no checkbox | Layer-style Stroke (Outside), NOT text-style expressions — a returned text style would flatten the per-run arrays that per-word italic rides. |
+| `Outline Color` | color control | `outline.color` | |
+| `Emphasis 1 Start` / `Emphasis 1 End` | sliders 0–200, default 0 | per-word color override (char range) | Character indices, 0-based start / exclusive end; Start = End ⇒ slot inactive. Drive a text animator's range selector. |
+| `Emphasis 1 Color` | color control | per-word color override | |
+| `Emphasis 2 Start` / `Emphasis 2 End` / `Emphasis 2 Color` | as slot 1 | second colored range | Two slots ⇒ up to two independently colored word-groups per line (adjacent emphasized words merge into one range; a third disjoint group is a known limit). |
+| `Legenda Version` | slider, value **2** | — | |
+
+**`Text Color` mechanism change in v2 (name and value shape UNCHANGED).** The
+v1 Fill *effect* flattens all glyph color and would paint over emphasis
+animators, so v2 deletes it; base color becomes a Color Control driving a
+whole-text base animator. The exposed control still serializes as a color
+clientControl named `Text Color` — the patcher needs no change for base color.
+Emphasis animators sit after the base animator and override it inside their
+ranges without touching the text document (per-run italic unaffected).
+
+Also authored into v2: **Faux Styles enabled** on Line Text's EG properties
+(exports `capPropFontFauxStyleEdit: true`; the patcher's per-line gate flip
+becomes redundant-but-harmless).
+
+**Deliberately NOT in v2** (decided 2026-07-03): `Line Height` — one instance
+renders one line; leading has no visible effect on single-line point text
+(StyleDef carries it for a multi-line future). `Letter Spacing` — only
+reachable via a text-style expression on Source Text, which applies one style
+to the whole text and would flatten per-run italic (a shipped feature); stays
+deferred. `Alignment` — all presets center; paragraph alignment is not
+expression-drivable; stays deferred.
+
+### Tier 3 — still deferred
+- Background `cornerRadius` / `paddingX` / `paddingY` (preset-typical values
+  baked into the template), shadow blur/distance, a third+ emphasis slot
+  (two ship in v2 — see the fade v2 table).
 
 ## Animation behavior
 
@@ -73,10 +100,13 @@ The hard problem: a line is on screen across *two* consecutive line-slots
 instance cannot key the push at a fixed offset from its in/out points.
 Candidate strategies, to be prototyped in this order:
 1. **Two instances per line** — same text inserted twice: once as `Row: Bottom`
-   (own slot) and once as `Row: Top` (next line's slot), with `Row` exposed as
-   a dropdown/checkbox. The "push" is a cut masked by the blur-out/blur-in
-   ramps at the boundary. Doubles instance count; renderer already knows both
-   time ranges.
+   (own slot) and once as `Row: Top` (next line's slot), with **`Top Row`
+   exposed as a checkbox** (exact name; patch channel drives checkboxes). The
+   "push" is a cut masked by the blur-out/blur-in ramps at the boundary
+   (recipe: MOGRT_AUTHORING §C). Doubles instance count; renderer already
+   knows both time ranges. **Renderer consequence: top-row instances overlap
+   bottom-row ones in time ⇒ a SECOND plugin-owned track** (insert-split
+   semantics forbid overlap on one track).
 2. **Single instance spanning two slots** with the push authored at the start
    of the outro protected region. Only works if the outro can carry the
    full push+top+exit phase with acceptable distortion under time-stretch.
@@ -161,10 +191,14 @@ scope call, update SPECIFICATION.md if taken).
   entry per run; `capPropTextRunCount` is the run count. Faux-style values
   are gated by `capPropFontFauxStyleEdit` (flip true when any run uses one —
   confirmed live for italic, step 10). **There is NO per-run color field** in
-  this serialization (full key sweep of the shipped template, 2026-07-03) —
-  `Text Color` is whole-caption. Open question: does AE's exporter emit a
-  color array when the AUTHORED text mixes fill colors? (5-minute experiment:
-  recolor one word in mogrt_build.aep, re-export, diff definition.json.)
+  this serialization (full key sweep of the shipped template, 2026-07-03).
+  **COLORTEST experiment ANSWERED (2026-07-03): route closed.** A template
+  authored with a red middle word exported with NO new keys and
+  `capPropTextRunCount` still 1 — fill color does not even create a run
+  boundary; the serialization tracks font-edit properties only, and the color
+  lives solely in the binary .aep (not patchable). Per-word color therefore
+  goes through **emphasis slots** (text animators; see "Fade v2 exposures"),
+  not the run arrays.
 
 ## Open questions still to answer
 1. Plugin-owned track creation without auto-create: check defs for a track-add

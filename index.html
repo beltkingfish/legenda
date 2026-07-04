@@ -48,7 +48,21 @@
         </div>
         <p class="field-label">Word emphasis</p>
         <div id="override-word-chips" class="word-chips"></div>
-        <p class="hint">Click a word to italicize just that word.</p>
+        <p class="hint">Click a word to edit its emphasis.</p>
+        <div id="word-editor" class="word-editor">
+          <div class="field-row">
+            <label class="check-label">
+              <input id="word-italic-input" type="checkbox" /> Italic
+            </label>
+          </div>
+          <div class="field-row">
+            <label class="field-label" for="word-color-input">
+              Word color (#RRGGBB · empty = none)
+            </label>
+            <input id="word-color-input" class="field-input field-wide" type="text" />
+            <span id="word-color-swatch" class="swatch"></span>
+          </div>
+        </div>
         <button id="clear-override-button" class="button">
           Clear overrides on this line
         </button>
@@ -113,18 +127,50 @@
         <label class="field-label" for="shadow-opacity-input">Shadow opacity (0–100)</label>
         <input id="shadow-opacity-input" class="field-input" type="number" min="0" max="100" />
       </div>
+      <div class="field-row">
+        <label class="check-label">
+          <input id="outline-enabled-input" type="checkbox" /> Outline
+        </label>
+      </div>
+      <div class="field-row">
+        <label class="field-label" for="outline-width-input">Outline width (0–16)</label>
+        <input id="outline-width-input" class="field-input" type="number" min="0" max="16" />
+      </div>
+      <div class="field-row">
+        <label class="field-label" for="outline-color-input">Outline color (#RRGGBB)</label>
+        <input id="outline-color-input" class="field-input field-wide" type="text" />
+        <span id="outline-color-swatch" class="swatch"></span>
+      </div>
       <p class="hint">
-        Line height, letter spacing, alignment, and outline arrive with template v2.
+        Line height, letter spacing, and alignment are carried in styles for a
+        future template.
       </p>
+      <div id="my-styles-row" class="my-styles-row">
+        <label class="field-label" for="my-styles-select">My styles</label>
+        <select id="my-styles-select" class="field-input field-wide">
+          <option value="">Load a saved style…</option>
+        </select>
+        <button id="delete-style-button" class="button">Delete</button>
+      </div>
       <div class="button-row">
-        <button id="save-style-button" class="button" disabled
-                title="Custom style save/load is Phase 2">
+        <button id="export-style-button" class="button">Export style…</button>
+        <button id="import-style-button" class="button">Import style…</button>
+      </div>
+      <div class="button-row">
+        <button id="save-style-button" class="button">
           Save as custom style…
         </button>
         <button id="apply-style-button" class="button button-primary" disabled>
           Apply to all
         </button>
       </div>
+      <div id="save-style-row" class="save-style-row">
+        <input id="style-name-input" class="field-input field-wide" type="text"
+               placeholder="Style name" />
+        <button id="save-style-confirm" class="button button-primary">Save</button>
+        <button id="save-style-cancel" class="button">Cancel</button>
+      </div>
+      <p id="style-status" class="hint"></p>
     </section>
 
     <!-- Timing (UI_COMPONENTS.md §4 — warnings never block) -->
@@ -144,8 +190,8 @@
         <label class="field-label" for="transition-input">Transition duration (rec: 100–200ms)</label>
         <input id="transition-input" class="field-input" type="number" min="0" step="10" />
         <p id="transition-warning" class="timing-warning"></p>
-        <p class="hint">Template v1 fades are authored at ≈150 ms; this setting takes
-          effect when template v2 exposes the transition.</p>
+        <p class="hint">Drives each caption's fade-in/out ramp (template v2).
+          Values above 500 ms render time-stretched on short captions.</p>
       </div>
       <div class="field-row">
         <label class="field-label" for="gap-input">Gap between captions (rec: 0–200ms)</label>

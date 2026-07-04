@@ -19,7 +19,26 @@ elements where supported. One persistent panel, vertically sectioned. Last updat
 - Color: Text color swatch
 - Background: toggle **Background** (on/off) → Color swatch, Opacity slider
 - Contrast: Outline width + color; Drop shadow toggle
-- Row of actions: **Save as custom style…** (Phase 2), **Apply to all**
+- Row of actions: **Save as custom style…**, **Apply to all**
+- **Save as custom style… (Phase 2)**: reveals an inline row — name field
+  (placeholder "Style name") + **Save** + **Cancel**. Saving under an existing
+  style's name updates that style (identity = slugified name). Status text
+  confirms: `Saved "Name".` / `Updated "Name".`
+- **My styles (Phase 2)**: dropdown labeled "My styles" (placeholder option
+  "Load a saved style…"), shown only when at least one saved style exists.
+  Selecting one loads it into the working style controls; applying still goes
+  through Generate / Apply to all. **Delete** beside it uses the confirm-once
+  pattern (`Really delete "Name"?`).
+- Custom styles persist in the plugin's data folder (`custom-styles.json`,
+  presets schema + `version` field — the same shape §10 export/import uses).
+- **Export style… / Import style… (Phase 2)**: Export writes the current
+  working style (named after the loaded saved style, else the active preset,
+  else "Custom style") as a JSON file — the custom-styles.json shape, one
+  entry; suggested filename `<slug>.json`. Import reads such a file (single
+  or multi-style), adds/updates My styles entries by slug identity, and loads
+  the style into the working controls when the file held exactly one. Status:
+  `Exported "Name".` / `Imported "Name".` / `Imported N styles.` — plus a
+  skipped count when a file carried unreadable entries.
 
 ### 3. Animation
 - Animation selector: **Teleprompter** · **Fade**
@@ -37,10 +56,16 @@ elements where supported. One persistent panel, vertically sectioned. Last updat
 - List/scrubbable list of lines with their in/out times.
 - Selecting a line reveals: color override swatch, italic toggle.
 - **Word emphasis (Phase 2)**: the selected line's words render as clickable chips
-  under the label "Word emphasis"; clicking a word toggles italic on just that word.
-  Emphasized chips render italic with an accent border. Helper text: "Click a word
-  to italicize just that word." (Per-word *recolor* is pending the per-run color
-  channel investigation — see PROJECT_STATUS.)
+  under the label "Word emphasis". Clicking a chip SELECTS the word (accent fill)
+  and reveals the word's own controls beneath — an "Italic" checkbox and a
+  "Word color (#RRGGBB · empty = none)" field — independent properties, the same
+  pattern as the line editor. Clicking the selected chip again deselects.
+  Emphasized chips render italic and/or tinted in their color, with an accent
+  border. Helper text: "Click a word to edit its emphasis."
+- Per-word color renders via the template's TWO emphasis slots: up to two
+  colored word-groups per line (adjacent same-color words merge into one
+  group). Further groups are skipped at Generate with a count in the status
+  line: `N word color(s) beyond the 2-slot limit skipped`.
 - "Clear overrides on this line" (also clears word emphasis within the line).
 
 ### 6. Generate / regenerate
