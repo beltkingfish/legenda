@@ -121,6 +121,55 @@ export function planFrameTimings(
   return out;
 }
 
+/** One MOGRT instance in the teleprompter's two-instances-per-line model. */
+export interface TeleprompterInstance extends FramePlanEntry {
+  /** false = the line's own slot (bottom position); true = the next slot (top). */
+  topRow: boolean;
+}
+
+/** A line bridges to the next only across gaps ≤ this (no push over silences). */
+export const TELEPROMPTER_BRIDGE_MAX_SEC = 1.5;
+
+/**
+ * Derive the teleprompter's instance list from the fade-style frame plan
+ * (MOGRT_SPEC strategy 1): per line, a BOTTOM instance over its own slot —
+ * extended to the next line's start when the gap is small, so the line holds
+ * the screen until the push — and, when bridged, a TOP instance over the
+ * next line's slot (the same text riding above the newcomer). Long gaps
+ * break the chain: the line exits at the bottom (blur-masked) and the next
+ * line starts fresh. The last line never gets a top instance.
+ */
+export function planTeleprompterInstances(
+  plan: FramePlanEntry[]
+): TeleprompterInstance[] {
+  const bridgeMaxTicks = TELEPROMPTER_BRIDGE_MAX_SEC * PREMIERE_TICKS_PER_SECOND;
+
+  const bridged = plan.map((entry, i) => {
+    const next = plan[i + 1];
+    return next !== undefined && Number(next.startTicks) - Number(entry.endTicks) <= bridgeMaxTicks;
+  });
+  // A bottom instance holds until the newcomer arrives (when bridged).
+  const bottomEnd = plan.map((entry, i) =>
+    bridged[i] ? plan[i + 1].startTicks : entry.endTicks
+  );
+
+  const out: TeleprompterInstance[] = [];
+  plan.forEach((entry, i) => {
+    out.push({ ...entry, endTicks: bottomEnd[i], topRow: false });
+    if (bridged[i]) {
+      // Ride the top position for exactly as long as the next line holds
+      // the bottom (its own bottom-end, bridge-extended or not).
+      out.push({
+        ...entry,
+        startTicks: plan[i + 1].startTicks,
+        endTicks: bottomEnd[i + 1],
+        topRow: true,
+      });
+    }
+  });
+  return out;
+}
+
 export function wrapWords(words: CaptionWord[], options: WrapOptions): CaptionLine[] {
   const targetChars = Math.max(1, Math.floor(options.targetLineChars));
   const maxLineSec = options.maxLineSec ?? DEFAULT_MAX_LINE_SEC;

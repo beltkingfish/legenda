@@ -199,6 +199,10 @@ body {
   display: block;
 }
 
+.hint.is-hidden {
+  display: none;
+}
+
 /* Custom styles (UI_COMPONENTS §2): both rows reveal on demand. */
 .save-style-row,
 .my-styles-row {

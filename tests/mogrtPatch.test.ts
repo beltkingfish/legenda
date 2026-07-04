@@ -41,6 +41,7 @@ function makeDefinition() {
       // v2 exposures (appended so index-based assertions above stay valid)
       { id: "id-tr", uiName: { strDB: [{ str: "Transition (ms)" }] }, value: 150 },
       { id: "id-dur", uiName: { strDB: [{ str: "Duration (ms)" }] }, value: 4000 },
+      { id: "id-top", uiName: { strDB: [{ str: "Top Row" }] }, value: false },
       { id: "id-ow", uiName: { strDB: [{ str: "Outline Width" }] }, value: 0 },
       { id: "id-oc", uiName: { strDB: [{ str: "Outline Color" }] }, value: [0, 0, 0, 1] },
       { id: "id-e1s", uiName: { strDB: [{ str: "Emphasis 1 Start" }] }, value: 0 },
@@ -76,6 +77,7 @@ function makeDefinition() {
             { capPropMatchName: "id-so", capPropUIName: "Shadow Opacity", capPropDefault: 0 },
             { capPropMatchName: "id-tr", capPropUIName: "Transition (ms)", capPropDefault: 150 },
             { capPropMatchName: "id-dur", capPropUIName: "Duration (ms)", capPropDefault: 4000 },
+            { capPropMatchName: "id-top", capPropUIName: "Top Row", capPropDefault: false },
             { capPropMatchName: "id-ow", capPropUIName: "Outline Width", capPropDefault: 0 },
             { capPropMatchName: "id-oc", capPropUIName: "Outline Color", capPropDefault: [0, 0, 0, 1] },
             { capPropMatchName: "id-e1s", capPropUIName: "Emphasis 1 Start", capPropDefault: 0 },
@@ -328,6 +330,18 @@ test("transitionMs patches the Transition (ms) control and capParam", () => {
   const { control, param } = byName(definition, "Transition (ms)");
   assert.equal(control.value, 300);
   assert.equal(param.capPropDefault, 300);
+});
+
+test("topRow patches the Top Row checkbox (teleprompter row switch)", () => {
+  const top = parseResult(
+    patchTemplate(loadTemplate(makeMogrt()), { text: "Hi", label: "L1", topRow: true })
+  ).definition;
+  assert.equal(byName(top, "Top Row").control.value, true);
+  assert.equal(byName(top, "Top Row").param.capPropDefault, true);
+  const bottom = parseResult(
+    patchTemplate(loadTemplate(makeMogrt()), { text: "Hi", label: "L1", topRow: false })
+  ).definition;
+  assert.equal(byName(bottom, "Top Row").control.value, false);
 });
 
 test("durationMs patches the Duration (ms) control (stretch-inversion anchor)", () => {

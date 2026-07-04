@@ -47,7 +47,7 @@ import {
   type TranscribedClip,
 } from "./premiere";
 import ppro from "./ppro";
-import { clearCaptions, generateCaptions } from "./renderer";
+import { clearCaptions, generateCaptions, type AnimationId } from "./renderer";
 import { parseSrt } from "./srt";
 import {
   getPreset,
@@ -606,6 +606,35 @@ for (const input of [fontWeightSelect, bgEnabledInput, shadowEnabledInput, outli
 renderStyleControls();
 
 // ---------------------------------------------------------------------------
+// Animation section (UI_COMPONENTS §3): Fade · Teleprompter. The hint below
+// the buttons is only relevant to Teleprompter — shown when it's selected.
+
+let currentAnimation: AnimationId = "fade";
+
+const animationButtons: { id: AnimationId; button: HTMLButtonElement }[] = [
+  { id: "fade", button: el<HTMLButtonElement>("animation-fade") },
+  { id: "teleprompter", button: el<HTMLButtonElement>("animation-teleprompter") },
+];
+const animationHint = el<HTMLElement>("animation-hint");
+
+function renderAnimationControls(): void {
+  for (const { id, button } of animationButtons) {
+    button.className =
+      id === currentAnimation ? "button preset-button is-active" : "button preset-button";
+  }
+  animationHint.className = currentAnimation === "teleprompter" ? "hint" : "hint is-hidden";
+}
+
+for (const { id, button } of animationButtons) {
+  button.addEventListener("click", () => {
+    currentAnimation = id;
+    renderAnimationControls();
+  });
+}
+
+renderAnimationControls();
+
+// ---------------------------------------------------------------------------
 // Custom styles (UI_COMPONENTS §2, SPECIFICATION §6): same data shape as
 // presets, persisted in the plugin data folder — reusable across projects.
 
@@ -865,12 +894,22 @@ async function onGenerateClick(): Promise<void> {
   generateStatus.className = "hint";
   generateStatus.textContent = "Generating…";
   try {
-    const result = await generateCaptions(lines, currentStyle, currentTiming, (done, total) => {
-      generateStatus.textContent = `Inserting caption ${done}/${total}…`;
-    });
+    const result = await generateCaptions(
+      lines,
+      currentStyle,
+      currentTiming,
+      currentAnimation,
+      (done, total) => {
+        generateStatus.textContent = `Inserting caption ${done}/${total}…`;
+      }
+    );
+    const trackText =
+      result.trackIndexes.length === 1
+        ? `track ${result.trackIndexes[0] + 1}`
+        : `tracks ${result.trackIndexes[0] + 1}–${result.trackIndexes[result.trackIndexes.length - 1] + 1}`;
     generateStatus.className = "source-result";
     generateStatus.textContent =
-      `Generated ${result.inserted} caption(s) on video track ${result.trackIndex + 1}` +
+      `Generated ${result.inserted} caption(s) on video ${trackText}` +
       (result.cleared > 0 ? ` (cleared ${result.cleared} previous)` : "") +
       ` · scaled to ${result.scalePct.toFixed(1)}%` +
       (result.droppedLines > 0

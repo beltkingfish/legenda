@@ -406,8 +406,24 @@ Last updated: 2026-07-03.
   italic ✓. Only the cosmetic overflow-message check (3+ colored word-groups)
   remains unexercised.
 
+- 2026-07-04 — Teleprompter renderer built (Phase 2's last animation step).
+  `planTeleprompterInstances` (pure, tested): per line a BOTTOM instance over
+  its own slot — extended across gaps ≤ 1.5 s so the line holds until the
+  push — plus, when bridged, a TOP instance riding the next line's slot;
+  long gaps break the chain (no push over silences); last line exits at the
+  bottom blur-masked; same-row instances proven non-overlapping. Renderer:
+  per-animation template selection, TWO plugin-owned tracks for teleprompter
+  (bottom row on the lower, `Top Row` patched per instance), clear sweeps all
+  recorded plugin tracks incl. stale ones after switching animation. Panel:
+  Animation section (Fade · Teleprompter) with the teleprompter limitations
+  hint (per-word color + Transition are fade-only in template v1). 121 tests.
+
 ## In progress
-- (none)
+- **Teleprompter live checks**: (a) two empty tracks required message; (b)
+  generate lays ~2×lines instances on two tracks; (c) playback: line blurs in
+  at bottom, pushes to top when the next arrives, blurs+fades out when the
+  one after arrives; (d) long pauses: no push, clean exit; (e) Clear sweeps
+  both tracks; (f) switching back to Fade clears the second track.
 
 ## Next (Phase 2 build order)
 1. ~~Per-word italic emphasis~~ — done, verified live.
@@ -416,11 +432,11 @@ Last updated: 2026-07-03.
 3. ~~Custom style save/load~~ — done, verified live (incl. persistence across
    plugin restart).
 4. ~~Style export/import~~ — done, verified live (full round trip).
-5. Teleprompter renderer + Animation selector (Teleprompter · Fade,
-   UI_COMPONENTS §3): two instances per line (`Top Row` patched per instance),
-   SECOND plugin-owned track for the overlapping top row, clear sweeps both
-   tracks. Template is authored + contract-verified; build AFTER the step-2
-   live checks pass.
+5. Teleprompter renderer + Animation selector — built; live verify pending
+   (see In progress). After it: Phase 2's animation scope is complete;
+   remaining queue = Adobe escalation draft (crashes + time-stretch finding),
+   overflow-message spot-check, custom track auto-creation, clip-offset time
+   base, EXP-001 easing tier decision.
 - Still queued: Adobe escalation (text API + UXP crash package), custom track
   auto-creation, clip-offset time base.
 - Side quests / unproven ideas live in `docs/EXPERIMENTS.md` (currently:

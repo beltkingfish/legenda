@@ -41,9 +41,14 @@ elements where supported. One persistent panel, vertically sectioned. Last updat
   skipped count when a file carried unreadable entries.
 
 ### 3. Animation
-- Animation selector: **Teleprompter** · **Fade**
-- Transition duration (ms) field (shared with Timing warnings)
-- (Teleprompter) Lines visible: fixed 2 in Phase 1 (shown, disabled)
+- Animation selector (segmented buttons, Fade default): **Fade** · **Teleprompter**
+- Transition duration (ms) lives in the Timing section (shared with its warnings).
+- Teleprompter hint (exact copy): "Two lines visible; new lines blur in at the
+  bottom and push up. Needs TWO empty video tracks on top. Per-word color and
+  the Transition setting are fade-only for now." (Lines visible is fixed at 2;
+  no control shown.)
+- Generate honors the selection; switching animation requires Generate /
+  Apply to all like any global change.
 
 ### 4. Timing (WCAG-aware; warnings never block)
 - Field "Minimum display time (WCAG: 1.33s)" → warn if below.
