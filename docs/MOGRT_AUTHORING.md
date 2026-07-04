@@ -75,26 +75,33 @@ styles enabled at author time. **Deliberately NOT in v2:**
 - On the **Controls** layer, set the `Legenda Version` slider to **2**.
 
 ### B1. Transition slider + expression-driven fade
-1. On **Controls**, add a **Slider Control**, rename the effect instance
-   **`Transition (ms)`** (exact — it's patched by this name), value **150**.
+**REVISED 2026-07-03 after the live time-stretch finding (ARCHITECTURE hard
+constraint #8): Premiere uniformly stretches the comp onto the clip and does
+NOT honor protected regions on our instances — expressions must invert the
+stretch using the patched real duration.**
+1. On **Controls**, add TWO **Slider Controls**, renamed exactly:
+   **`Transition (ms)`** value **150**, and **`Duration (ms)`** value **4000**
+   (= the comp length, so AE preview is 1:1; the patcher writes each line's
+   real duration at generate time).
 2. On **Caption Text → Transform → Opacity**: **delete all four keyframes**,
    then Alt-click the stopwatch and paste:
    ```js
    const ms = thisComp.layer("Controls").effect("Transition (ms)")("Slider");
-   const d = Math.max(ms / 1000, framesToTime(1)); // never a zero-length ramp
-   const fadeIn = linear(time, inPoint, inPoint + d, 0, 100);
-   const fadeOut = linear(time, outPoint - d, outPoint, 100, 0);
+   const durS = thisComp.layer("Controls").effect("Duration (ms)")("Slider") / 1000;
+   const t = time * durS / thisComp.duration; // invert Premiere's uniform stretch
+   const d = Math.max(ms / 1000, 0.001);
+   const fadeIn = linear(t, 0, d, 0, 100);
+   const fadeOut = linear(t, durS - d, durS, 100, 0);
    Math.min(fadeIn, fadeOut)
    ```
    (The background bar needs no change — its opacity expression already
    follows the text layer's post-expression opacity.)
-3. **Widen the protected regions** so user-chosen ramps play unstretched:
-   drag the Intro region's right edge to **frame 15** and the Outro region's
-   left edge to **frame 105** (= 500 ms each @ 30 fps). Constraint to note:
-   transitions **> 500 ms** will render time-stretched in the middle zone —
-   acceptable; the WCAG recommendation is 100–200 ms.
-4. Scrub: fade should ramp over 5 frames at slider 150; set the slider to
-   500 and confirm the ramp widens. Set it back to **150**.
+3. Protected regions: leave them as authored — they are NOT honored on
+   API-inserted instances (constraint #8), so they no longer carry the ramps;
+   the inversion above does.
+4. Scrub in AE: with `Duration (ms)` at 4000 the preview behaves 1:1 — the
+   fade ramps ~5 frames at slider 150 and widens at 500. Set both sliders
+   back to their defaults (150 / 4000) before export.
 
 ### B2. Outline (layer-style Stroke — no text-style expressions, so per-run
 ### italic styling is untouched)
@@ -161,6 +168,7 @@ would paint over the animators.
   | Drag this | Rename EG entry to |
   | --- | --- |
   | Controls → Transition (ms) (slider) | `Transition (ms)` |
+  | Controls → Duration (ms) (slider) | `Duration (ms)` |
   | Controls → Outline Width (slider) | `Outline Width` |
   | Controls → Outline Color (color) | `Outline Color` |
   | Controls → Text Color (color) | `Text Color` (replaces the Fill-effect entry deleted in §B3) |
@@ -173,7 +181,7 @@ would paint over the animators.
 - Keep every v1 entry (including the `Background` checkbox — the patch
   channel drives checkboxes, the old drop-decision is cancelled; see
   MOGRT_SPEC). Keep `Legenda Version` last. Slider ranges: Transition (ms)
-  0–1000, Outline Width 0–32, Emphasis Start/End 0–200.
+  0–1000, Duration (ms) 0–60000, Outline Width 0–32, Emphasis Start/End 0–200.
 - Export → Local Drive → this repo's `mogrt/` → **`legenda-fade-v2`**.
   Commit `legenda-fade-v2.mogrt` + `mogrt_build_v2.aep`; v1 stays shipped
   until v2 passes live checks (renderer keeps pointing at v1 until the
@@ -221,12 +229,19 @@ time, so they land on a SECOND plugin-owned track.
   — its position expression tracks the text layer.)
 
 ### C3. Blur ramps (the push mask + the spec's blur in/out)
-- **Caption Text** → Effect → Blur & Sharpen → **Gaussian Blur**; check
-  **Repeat Edge Pixels**. Alt-click **Blurriness**:
+**REVISED 2026-07-03 for the time-stretch inversion (constraint #8) — needs
+the `Duration (ms)` slider on Controls (§B1 step 1; the §C0 duplicate carries
+it).**
+- **Caption Text** → Effect → Blur & Sharpen → **Gaussian Blur** (NOT the
+  Legacy one under Obsolete); check **Repeat Edge Pixels**. Alt-click
+  **Blurriness**:
   ```js
+  const durS = thisComp.layer("Controls").effect("Duration (ms)")("Slider") / 1000;
+  const t = time * durS / thisComp.duration; // invert Premiere's uniform stretch
   const B = 32;
-  const blurIn = linear(time, inPoint, inPoint + framesToTime(5), B, 0);
-  const blurOut = linear(time, outPoint - framesToTime(5), outPoint, 0, B);
+  const f = 0.15;
+  const blurIn = linear(t, 0, f, B, 0);
+  const blurOut = linear(t, durS - f, durS, 0, B);
   Math.max(blurIn, blurOut)
   ```
   Identical for both rows on purpose: bottom-instance blur-out + top-instance
@@ -237,26 +252,28 @@ time, so they land on a SECOND plugin-owned track.
 - **Caption Text → Transform → Opacity** — replace the expression with:
   ```js
   const top = thisComp.layer("Controls").effect("Top Row")("Checkbox");
-  const f = framesToTime(5);
-  const fadeIn = top == 1 ? 100 : linear(time, inPoint, inPoint + f, 0, 100);
-  const fadeOut = top == 1 ? linear(time, outPoint - f, outPoint, 100, 0) : 100;
+  const durS = thisComp.layer("Controls").effect("Duration (ms)")("Slider") / 1000;
+  const t = time * durS / thisComp.duration;
+  const f = 0.15;
+  const fadeIn = top == 1 ? 100 : linear(t, 0, f, 0, 100);
+  const fadeOut = top == 1 ? linear(t, durS - f, durS, 100, 0) : 100;
   Math.min(fadeIn, fadeOut)
   ```
   Bottom instances fade IN only (the line "continues" upward, so no fade-out
-  at the cut); top instances fade OUT only. Fixed 5-frame (≈150 ms) masks in
-  this v1 — no `Transition (ms)` here yet; keep the slider out of the EG
-  panel for this template (remove it if the duplicate carried it over).
+  at the cut); top instances fade OUT only. Fixed 150 ms masks in this v1 —
+  no `Transition (ms)` here yet; keep that slider out of the EG panel for
+  this template.
 
-### C5. Protected regions + EG + export
-- Protected regions back to tight: Intro ends **frame 5**, Outro starts
-  **frame 114** (the masks are fixed-length; wide regions would only
-  squeeze short captions).
+### C5. EG + export
+- Protected regions: leave as-is — not honored on API-inserted instances
+  (constraint #8); the inversion carries the timing.
 - EG panel entries = the v1 Tier-1/2 set (Line Text, Text Color, Background,
   Background Color, Background Opacity, Shadow Opacity, Legenda Version)
-  **plus `Top Row`** (drag the checkbox; exact name). Faux Styles checked on
-  Line Text as in §B4. No Transition, Outline, or Emphasis controls in this
-  template's v1 (the §C0 duplicate carries them — remove those EG entries
-  and keep the comp's extra Controls effects unexposed; they're inert).
+  **plus `Top Row`** (checkbox) **and `Duration (ms)`** (slider, range
+  0–60000, default 4000 — exact names). Faux Styles checked on Line Text as
+  in §B4. No Transition, Outline, or Emphasis controls in this template's v1
+  (the §C0 duplicate carries them — remove those EG entries and keep the
+  comp's extra Controls effects unexposed; they're inert).
 - Export → `mogrt/legenda-teleprompter-v1.mogrt`; commit with the .aep.
 
 ### C6. What "good" looks like (eyeball in AE before exporting)

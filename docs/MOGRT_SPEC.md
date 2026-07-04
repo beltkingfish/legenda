@@ -53,6 +53,7 @@ work — recorded here for that case.)
 | `Emphasis 1 Start` / `Emphasis 1 End` | sliders 0–200, default 0 | per-word color override (char range) | Character indices, 0-based start / exclusive end; Start = End ⇒ slot inactive. Drive a text animator's range selector. |
 | `Emphasis 1 Color` | color control | per-word color override | |
 | `Emphasis 2 Start` / `Emphasis 2 End` / `Emphasis 2 Color` | as slot 1 | second colored range | Two slots ⇒ up to two independently colored word-groups per line (adjacent emphasized words merge into one range; a third disjoint group is a known limit). |
+| `Duration (ms)` | slider 0–60000, default 4000 | the line's exact display duration | **Time-stretch inversion** (ARCHITECTURE hard constraint #8): Premiere uniformly stretches the comp onto the clip, so time expressions recover real clip time via `t = time × durS / thisComp.duration`. Patched on every line; default 4000 = the comp length, so AE preview behaves 1:1. Also required by the teleprompter template (blur + opacity masks). |
 | `Legenda Version` | slider, value **2** | — | |
 
 **`Text Color` mechanism change in v2 (name and value shape UNCHANGED).** The

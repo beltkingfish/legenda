@@ -382,12 +382,29 @@ Last updated: 2026-07-03.
   merge, 2-slot truncation reported in the generate status). SPECIFICATION §7
   records the 2-slot limit. 113 tests.
 
+- 2026-07-03 — **Step-2 live checks: italic ✓ per-word color ✓ — and a MAJOR
+  platform finding on the fade.** Captions snapped on/off despite the patched
+  Transition value landing (Properties showed it). Maintainer-driven
+  experiment matrix isolated it: patch innocent (untrimmed patched instance
+  fades), position irrelevant (0:00 test), and the decisive measurement —
+  **fade length is PROPORTIONAL to clip length** (razor cuts window without
+  remapping). Verdict: **Premiere uniformly time-stretches the comp onto the
+  clip; protected regions are NOT honored on our instances** — now
+  ARCHITECTURE hard constraint #8. Corollary: v1's keyframed fades were
+  invisibly compressed (~2 frames) all through Phase 1. Countermeasure
+  designed + wired plugin-side: templates expose `Duration (ms)`; expressions
+  invert the stretch (`t = time × durS / thisComp.duration`); patcher writes
+  each line's exact duration (114 tests). MOGRT_AUTHORING §B1/§C3/§C4 recipes
+  revised with the corrected expressions.
+
 ## In progress
-- **Step 2 / v2-wiring live checks**: (a) Transition duration field changes
-  generated fades (150 vs 500); (b) Minimal preset renders its outline; (c)
-  word color override renders on the exact word; (d) per-word italic still
-  renders (no run-array regression); (e) 3+ colored word-groups on one line →
-  status reports the skip.
+- **Fade fix, maintainer AE side**: add `Duration (ms)` slider + swap the
+  revised expressions into BOTH comps (MOGRT_AUTHORING §B1 rev / §C3–C5 rev),
+  re-export both .mogrt files over the committed ones. Then: byte-verify,
+  regenerate, and re-run the step-2 fade checks (150 vs 500 at any caption
+  length).
+- Remaining step-2 checks after that: (e) 3+ colored word-groups → status
+  reports the skip. Checks (b) outline and (c)/(d) word emphasis are DONE.
 
 ## Next (Phase 2 build order)
 1. ~~Per-word italic emphasis~~ — done, verified live.
