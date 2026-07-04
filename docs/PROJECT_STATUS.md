@@ -352,6 +352,16 @@ Last updated: 2026-07-03.
   word) follows once v2 is exported and the animator route passes its live
   gate.
 
+- 2026-07-03 — **Crash #3 analyzed: identical signature, third confirmation.**
+  New Sentry dump (preserved in crash-reports/) parsed with the rebuilt
+  minidump parser (now committed: `scripts/parse-minidump.py` — the scratchpad
+  copy had the pre-fix THREAD offsets). Backtrace matches crashes #1–2
+  FRAME-FOR-FRAME (module-relative): JS → libdynamic-napi → the same Premiere
+  UXP host-API cluster (`+0xaa5f874 → +0xaa575ec → +0xaa58d38 → +0xaa69b1c…`).
+  Only the garbage pointer differs (near-NULL 0x11 vs in-image address) —
+  consistent with a use-after-free at one code site. Escalation package is now
+  three dumps, one deterministic signature.
+
 ## In progress
 - (none)
 
