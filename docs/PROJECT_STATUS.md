@@ -2,10 +2,10 @@
 
 Update this at the end of any session with meaningful changes (see CLAUDE.md → Update ritual).
 
-Current phase: **Phase 2 — steps 1/3/4 verified live; template v2 authored and
-its mechanisms live-verified; step 2 (per-word color) + v2 wiring BUILT,
-awaiting live verify. Phase 1 close item still open: teleprompter template
-(recipe ready, MOGRT_AUTHORING §C).**
+Current phase: **Phase 2 — steps 1/3/4 verified live; step 2 + v2 wiring BUILT,
+awaiting live verify. BOTH remaining templates authored + contract-verified
+(fade v2 live-proven; teleprompter renderer support not yet built) —
+Phase 1's template debt is closed.**
 Last updated: 2026-07-03.
 
 ## Done
@@ -396,9 +396,11 @@ Last updated: 2026-07-03.
 3. ~~Custom style save/load~~ — done, verified live (incl. persistence across
    plugin restart).
 4. ~~Style export/import~~ — done, verified live (full round trip).
-5. Additional animations/presets — after the Phase 1 close items: teleprompter
-   template (MOGRT_SPEC strategies) + template v2 exposures (transition ramp,
-   line height, letter spacing, alignment, outline).
+5. Teleprompter renderer + Animation selector (Teleprompter · Fade,
+   UI_COMPONENTS §3): two instances per line (`Top Row` patched per instance),
+   SECOND plugin-owned track for the overlapping top row, clear sweeps both
+   tracks. Template is authored + contract-verified; build AFTER the step-2
+   live checks pass.
 - Still queued: Adobe escalation (text API + UXP crash package), custom track
   auto-creation, clip-offset time base.
 - Side quests / unproven ideas live in `docs/EXPERIMENTS.md` (currently:

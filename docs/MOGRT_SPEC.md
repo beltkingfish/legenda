@@ -11,7 +11,7 @@ in the same change. Last updated: 2026-07-02.
 | --- | --- | --- |
 | `mogrt/legenda-fade-v1.mogrt` | Fade | shipped (superseded; kept for reference) |
 | `mogrt/legenda-fade-v2.mogrt` | Fade + transition ramp + outline + emphasis slots | **shipped — renderer default** (live-verified 2026-07-03) |
-| `mogrt/legenda-teleprompter-v1.mogrt` | Teleprompter | recipe ready (MOGRT_AUTHORING §C) |
+| `mogrt/legenda-teleprompter-v1.mogrt` | Teleprompter (strategy 1: `Top Row` two-instance) | **authored + contract-verified** (2026-07-03); renderer support pending |
 
 One MOGRT instance renders **one caption line**. The plugin inserts an instance per
 line on the plugin-owned track, trims it to the line's duration, and sets the
