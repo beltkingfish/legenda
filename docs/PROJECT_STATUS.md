@@ -442,11 +442,22 @@ Last updated: 2026-07-03.
 3. ~~Custom style save/load~~ — done, verified live (incl. persistence across
    plugin restart).
 4. ~~Style export/import~~ — done, verified live (full round trip).
-5. Teleprompter renderer + Animation selector — built; live verify pending
-   (see In progress). After it: Phase 2's animation scope is complete;
-   remaining queue = Adobe escalation draft (crashes + time-stretch finding),
-   overflow-message spot-check, custom track auto-creation, clip-offset time
-   base, EXP-001 easing tier decision.
+5. ~~Teleprompter renderer (two-row)~~ — done, verified live; superseded by
+   the three-row rising-stack redesign (SPECIFICATION §4 rev).
+6. Teleprompter v2 template (§D recipe) → renderer three-row update (three
+   instances/line, three plugin tracks, `Row` patched).
+7. Teleprompter texture pass (v2.1, AFTER the stack mechanism proves live):
+   fogged-glass blurred rows — blur + lifted blacks/contrast + subtle
+   Turbulent Displace shimmer, intensity keyed to `Row` (SPECIFICATION §4
+   aesthetic note). Comp-internal; zero new API surface.
+8. Caption position as a STYLE property (SPECIFICATION §2 addition): expose
+   `Position X`/`Position Y` on BOTH templates (row math becomes offsets from
+   the anchor), StyleDef gains position, panel gains anchor presets + fine
+   X/Y in Caption Style, patcher writes two numbers. Saves into custom
+   styles / export-import automatically.
+- Still queued: Adobe escalation draft (crashes + time-stretch finding),
+  overflow-message spot-check, custom track auto-creation, clip-offset time
+  base, EXP-001 easing tier decision.
 - Still queued: Adobe escalation (text API + UXP crash package), custom track
   auto-creation, clip-offset time base.
 - Side quests / unproven ideas live in `docs/EXPERIMENTS.md` (currently:

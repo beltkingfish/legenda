@@ -9,7 +9,10 @@ caption styles, driven from a transcript or SRT, with accessibility-aware timing
 
 ## 2. Core concepts (two independent axes)
 - **Caption Style** = the *look*: font family, weight, size, color, line height, letter
-  spacing, alignment, background (on/off + color + opacity), outline/drop shadow.
+  spacing, alignment, background (on/off + color + opacity), outline/drop shadow,
+  and **screen position** (added 2026-07-04: the anchor where the caption /
+  animation stack renders — a style property, so it saves into custom styles
+  and travels through style export/import; build pending).
 - **Animation Style** = the *behavior*: how a caption enters and exits.
 These are chosen independently and mixed freely (e.g. "Clean" look + teleprompter motion).
 
@@ -28,7 +31,10 @@ These are chosen independently and mixed freely (e.g. "Clean" look + teleprompte
    **physically rises on the Y-axis** — continuous motion, not cuts: the
    preview rises into the middle and resolves to focus, the current defocuses
    and dims into the top, the old line rises off and fades out. The push
-   duration follows the Transition setting.
+   duration follows the Transition setting. Aesthetic intent for the blurred
+   rows (2026-07-04): **fogged glass** — not mere defocus; blur + lifted
+   contrast + subtle organic shimmer, staged as a texture pass AFTER the
+   rising-stack mechanism is proven live.
 2. **Fade** — simple fade in / fade out per line.
 The animation itself is authored into pre-built MOGRT template(s); the plugin drives the
 exposed parameters and timing (see ARCHITECTURE.md).
